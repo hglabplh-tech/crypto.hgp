@@ -126,7 +126,7 @@
   (SEQUENCE
    (tbsCertificate TBSCertificate)
    (signatureAlgorithm AlgorithmIdentifier/DER)
-   (signature BIT-STRING)))
+   (signature BIT-STRING #:optional)))
 
 (define-asn1-type TBSCertificate
   (SEQUENCE

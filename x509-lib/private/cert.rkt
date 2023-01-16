@@ -670,3 +670,20 @@
 
 (define (make-certificate der who)
   (new certificate% (der der) (check-who who)))
+
+(define create-certificate (lambda (version subject issuer serial validity pubkeyinfo keyusage signature algorithm extensions)
+   (let* ([tbsCert (make-immutable-hasheq ['version version]
+                            ['serialNumber serial]
+                            ['signature signature]
+                            ['issuer issuer]
+                            ['validity validity]
+                            ['subject subject]
+                            ['subjectPublicKeyInfo pubkeyinfo])]
+                  [cert (make-immutable-hasheq ['tbsCertificate tbsCert]
+                                    ['signatureAlgorithm algorithm])]
+                  [der (asn1->bytes Certificate cert)])
+                  
+         
+     (make-certificate der))))
+
+ 

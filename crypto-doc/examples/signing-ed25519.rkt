@@ -1,6 +1,6 @@
 #lang racket/base
-(require racket/match crypto crypto/nettle)
-(crypto-factories nettle-factory)
+(require racket/match crypto crypto/libcrypto)
+(crypto-factories libcrypto-factory)
 
 ;; This example shows signing EdDSA with curve Ed25519.
 

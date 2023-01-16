@@ -26,11 +26,12 @@
          "../common/ffi.rkt")
 
 (provide (protect-out (all-defined-out)))
+(define-runtime-path libgcrypt-so
+(case (system-type)
+    [(windows) '(so "libgcrypt" )]
+    [else '(so "libgcrypt" ("20" #f))]))
 
 ;; Cooperate with `raco distribute`.
-(define-runtime-path libgcrypt-so
-  '(so "libgcrypt" ("20" #f)))
-
 ;; depended on by libgcrypt
 (define-runtime-path libgpg-error-so
   '(so "libgpg-error"))

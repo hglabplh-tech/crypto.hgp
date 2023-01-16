@@ -1,6 +1,6 @@
 #lang racket/base
-(require racket/match crypto crypto/sodium)
-(crypto-factories sodium-factory)
+(require racket/match crypto crypto/libcrypto)
+(crypto-factories libcrypto-factory)
 
 ;; This example shows derivation of a shared secret using X25519 (ECDH
 ;; on Curve25519).

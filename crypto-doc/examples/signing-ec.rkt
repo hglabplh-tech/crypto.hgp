@@ -1,6 +1,6 @@
 #lang racket/base
-(require racket/match crypto crypto/nettle)
-(crypto-factories nettle-factory)
+(require racket/match crypto crypto/libcrypto)
+(crypto-factories libcrypto-factory)
 
 ;; This example shows signing ECDSA with curve secp256r1 (aka NIST
 ;; P-256 aka prime256v1).
@@ -17,6 +17,7 @@
 ;; Alice:
 (define msg #"Hi, my name is Alice.")
 (define sig (digest/sign alice:privkey 'sha256 msg))
+(display sig)
 
 ;; Step 2: Bob obtains Alice's public key
 
