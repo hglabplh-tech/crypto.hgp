@@ -15,7 +15,7 @@
 
 #lang racket/base
 (require asn1
-         "basesig-asn1.rkt")
+         "basesig-asn1.rkt" "attrcert-asn1.rkt")
 (provide (all-defined-out))
 ;;=======================================================================================
 ;; CMS signature (former pkcs7) definitions to build the asn1 signature structures for serialize / deserialice
@@ -67,14 +67,38 @@
         (crls #:implicit 1 RevocationInfoChoices #:optional)
         (signerInfos SignerInfos)))
 
+  (define-asn1-type RevocationInfoChoices (SET-OF RevocationInfoChoice))
+
+  (define-asn1-type RevocationInfoChoice (CHOICE
+        (crl CertificateList)
+        (other #:implicit 1 OtherRevocationInfoFormat)))
+
+ (define-asn1-type OtherRevocationInfoFormat  (SEQUENCE
+        (otherRevInfoFormat OBJECT-IDENTIFIER)
+        (otherRevInfo ANY)))
+
+ (define-asn1-type CertificateChoices  (CHOICE 
+     (certificate Certificate)
+     (extendedCertificate #:explicit 0 ExtendedCertificate)  ;;-- Obsolete
+     (v1AttrCert #:implicit 1  AttributeCertificate)        ;;-- Obsolete
+     (v2AttrCert #:implicit 2 AttributeCertificateV2)
+     (other #:implicit 3 OtherCertificateFormat)))
+
+  (define AttributeCertificateV2 AttributeCertificate)
+
+  (define-asn1-type OtherCertificateFormat (SEQUENCE 
+     (otherCertFormat OBJECT-IDENTIFIER)
+     (otherCert ANY)))
+
+  (define-asn1-type CertificateSet (SET-OF CertificateChoices))
+
   (define DigestAlgorithmIdentifiers (SET-OF DigestAlgorithmIdentifier))
 
-  (dedfine SignerInfos (SET-OF SignerInfo))
+  (define SignerInfos (SET-OF SignerInfo))
 
   (define EncapsulatedContentInfo (SEQUENCE           
         (eContentType ContentType)
-        (eContent #:explicigt 0  OCTET-STRING #:optional)))
-
+        (eContent #:explicit 0  OCTET-STRING #:optional)))
 
   (define SignedAttributes (SET-OF CmsAttribute))
 
@@ -94,7 +118,7 @@
                                  (issuer Name)
                                  (serialNumber INTEGER)))
 
-
+(define-asn1-type UnauthAttributes (SET-OF Attribute))
 
 (define RelativeDistinguishedName (SET-OF AttributeTypeAndValue))
 
@@ -108,7 +132,7 @@
 (define DigestAlgorithmIdentifier AlgorithmIdentifier)
 (define SignatureAlgorithmIdentifier AlgorithmIdentifier)
 
-(define SignerInfo (SEQUENCE
+(define-asn1-type SignerInfo (SEQUENCE
         (version CMSVersion)
         (sid SignerIdentifier)
         (digestAlgorithm DigestAlgorithmIdentifier)
@@ -116,3 +140,85 @@
         (signatureAlgorithm SignatureAlgorithmIdentifier)
         (signature SignatureValue)
         (unsignedAttrs #:implicit 2 UnsignedAttributes #:optional)))
+ 
+
+;;Certificate definitions
+(define Validity (SEQUENCE (notBefore GeneralizedTime) (notAfter GeneralizedTime)))
+(define-asn1-type Certificate
+  (SEQUENCE
+   (tbsCertificate TBSCertificate)
+   (signatureAlgorithm AlgorithmIdentifier/DER)
+   (signature BIT-STRING #:optional)))
+
+(define-asn1-type TBSCertificate
+  (SEQUENCE
+   (version #:explicit 0 Version #:default v1)
+   (serialNumber CertificateSerialNumber)
+   (signature AlgorithmIdentifier/DER)
+   (issuer Name)
+   (validity Validity)
+   (subject Name)
+   (subjectPublicKeyInfo ANY/DER)
+   (issuerUniqueID #:implicit 1 UniqueIdentifier #:optional)
+   (subjectUniqueID #:implicit 2 UniqueIdentifier #:optional)
+   (extensions #:explicit 3 Extensions #:optional)))
+
+
+
+(define Version INTEGER)
+(define v1 0)
+(define v2 1)
+(define v3 2)
+
+(define CertificateSerialNumber INTEGER)
+
+(define-asn1-type CertificateList
+  (SEQUENCE
+   (tbsCertList ANY/DER)
+   (signatureAlgorithm (AlgorithmIdentifier SIGNING))
+   (signature BIT-STRING)))
+
+(define SIGNING
+  (relation
+   #:heading
+   ['oid                    'pk  'digest 'params  'params-presence]
+   #:tuples
+   ;; From RFC 5912:
+   [md5WithRSAEncryption    'rsa 'md5    NULL     'required]
+   [sha1WithRSAEncryption   'rsa 'sha1   NULL     'required]
+   [sha224WithRSAEncryption 'rsa 'sha224 NULL     'required]
+   [sha256WithRSAEncryption 'rsa 'sha256 NULL     'required]
+   [sha384WithRSAEncryption 'rsa 'sha384 NULL     'required]
+   [sha512WithRSAEncryption 'rsa 'sha512 NULL     'required]
+   [id-RSASSA-PSS           'rsa #f      RSASSA-PSS-params 'required]
+   [dsa-with-sha1           'dsa 'sha1   NULL     'absent]
+   [id-dsa-with-sha224      'dsa 'sha224 NULL     'absent]
+   [id-dsa-with-sha256      'dsa 'sha256 NULL     'absent]
+   [id-dsa-with-sha384      'dsa 'sha384 NULL     'absent]
+   [id-dsa-with-sha512      'dsa 'sha512 NULL     'absent]
+   [ecdsa-with-SHA1         'ec  'sha1   NULL     'absent]
+   [ecdsa-with-SHA224       'ec  'sha224 NULL     'absent]
+   [ecdsa-with-SHA256       'ec  'sha256 NULL     'absent]
+   [ecdsa-with-SHA384       'ec  'sha384 NULL     'absent]
+   [ecdsa-with-SHA512       'ec  'sha512 NULL     'absent]
+
+   ;; From RFC 8410:
+   [id-Ed25519              'eddsa #f    #f       'absent]
+   [id-Ed448                'eddsa #f    #f       'absent]
+   ))
+
+(define-asn1-type ExtendedCertificateOrCertificate (CHOICE
+     (certificate Certificate)
+     (extendedCertificate #:implicit 0 ExtendedCertificate)))
+
+ (define-asn1-type ExtendedCertificate (SEQUENCE 
+     (extendedCertificateInfo ExtendedCertificateInfo)
+     (signatureAlgorithm SignatureAlgorithmIdentifier)
+     (signature Signature)))
+
+  (define-asn1-type ExtendedCertificateInfo (SEQUENCE 
+     (version CMSVersion)
+     (certificate Certificate)
+     (attributes UnauthAttributes)))
+
+   (define-asn1-type Signature BIT-STRING)

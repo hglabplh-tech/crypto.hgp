@@ -685,9 +685,6 @@
 
 (define AlgorithmIdentifier/PUBKEY (AlgorithmIdentifier PUBKEY))
 
-(define SubjectPublicKeyInfo
-  (SEQUENCE [algorithm AlgorithmIdentifier/PUBKEY]
-            [subjectPublicKey #:dependent (SPKI-PublicKey algorithm)]))
 
 (define (SPKI-PublicKey alg)
   (define alg-oid (hash-ref alg 'algorithm))

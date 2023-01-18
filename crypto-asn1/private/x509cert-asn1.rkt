@@ -142,6 +142,8 @@
    (subjectUniqueID #:implicit 2 UniqueIdentifier #:optional)
    (extensions #:explicit 3 Extensions #:optional)))
 
+(define SubjectPublicKeyInfo/DER ANY/DER)
+
 (define Version INTEGER)
 (define v1 0)
 (define v2 1)
