@@ -22,5 +22,5 @@
          "x509cert-asn1.rkt"
          "error.rkt"
          "basesig-asn1.rkt"
-         "base-asn1")
+         )
 

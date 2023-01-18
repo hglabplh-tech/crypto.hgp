@@ -7,6 +7,7 @@
          crypto/private/common/asn1
          (only-in crypto/private/common/catalog digest-spec-security-strength)
          "interfaces.rkt")
+
 (provide (all-defined-out)
          relation-ref)
 
@@ -525,7 +526,7 @@
    (onlyContainsAttributeCerts #:implicit 5 BOOLEAN #:default #f)))
 (define-asn1-type BaseCRLNumber CRLNumber)
 (define-asn1-type CRLReason
-  (WRAP-NAMES ENUMERATED
+  (ENUMERATED
    (list
     (cons 'unspecified 0)
     (cons 'keyCompromise 1)

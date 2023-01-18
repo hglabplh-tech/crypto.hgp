@@ -14,7 +14,7 @@
 ;; along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 #lang racket/base
-(require asn1
+(require asn1 asn1/util/names
          "error.rkt")
 (provide (all-defined-out))
 
@@ -917,83 +917,133 @@
    [id-emailAddress              EmailAddress]))
 
 
-;;=======================================================================================
-;; CMS signature (former pkcs7) definitions to build the asn1 signature structures for serialize / deserialice
-;;========================================================================================
+;;==============================================================
+;; Miscelaneous definitions
+;;==============================================================
+(define CertificateSerialNumber INTEGER)
 
-;;=======================================================================================
-;; the OIDs for cms signatures
-;;=======================================================================================
- (define id-cms-contentInfo (build-OID rsadsi  1 9 16 1 6))
+;; Value, etc definitions
+(define id-ce (OID (joint-iso-ccitt 2) (ds 5) 29))
+(define id-ce-authorityKeyIdentifier (build-OID id-ce 35))
+(define id-ce-subjectKeyIdentifier (build-OID id-ce 14))
+(define id-ce-keyUsage (build-OID id-ce 15))
+(define id-ce-privateKeyUsagePeriod (build-OID id-ce 16))
+(define id-ce-certificatePolicies (build-OID id-ce 32))
+(define anyPolicy (build-OID id-ce-certificatePolicies 0))
+(define id-ce-policyMappings (build-OID id-ce 33))
+(define id-ce-subjectAltName (build-OID id-ce 17))
+(define id-ce-issuerAltName (build-OID id-ce 18))
+(define id-ce-subjectDirectoryAttributes (build-OID id-ce 9))
+(define id-ce-basicConstraints (build-OID id-ce 19))
+(define id-ce-nameConstraints (build-OID id-ce 30))
+(define id-ce-policyConstraints (build-OID id-ce 36))
+(define id-ce-cRLDistributionPoints (build-OID id-ce 31))
+(define id-ce-extKeyUsage (build-OID id-ce 37))
+(define anyExtendedKeyUsage (build-OID id-ce-extKeyUsage 0))
+(define id-kp-serverAuth (build-OID id-kp 1))
+(define id-kp-clientAuth (build-OID id-kp 2))
+(define id-kp-codeSigning (build-OID id-kp 3))
+(define id-kp-emailProtection (build-OID id-kp 4))
+(define id-kp-timeStamping (build-OID id-kp 8))
+(define id-kp-OCSPSigning (build-OID id-kp 9))
+(define id-ce-inhibitAnyPolicy (build-OID id-ce 54))
+(define id-ce-freshestCRL (build-OID id-ce 46))
+(define id-pe-authorityInfoAccess (build-OID id-pe 1))
+(define id-pe-subjectInfoAccess (build-OID id-pe 11))
+(define id-ce-cRLNumber (build-OID id-ce 20))
+(define id-ce-issuingDistributionPoint (build-OID id-ce 28))
+(define id-ce-deltaCRLIndicator (build-OID id-ce 27))
+(define id-ce-cRLReasons (build-OID id-ce 21))
+(define id-ce-certificateIssuer (build-OID id-ce 29))
+(define id-ce-holdInstructionCode (build-OID id-ce 23))
+(define holdInstruction (OID (joint-iso-itu-t 2) (member-body 2) (us 840) (x9cm 10040) 2))
+(define id-holdinstruction-none (build-OID holdInstruction 1))
+(define id-holdinstruction-callissuer (build-OID holdInstruction 2))
+(define id-holdinstruction-reject (build-OID holdInstruction 3))
+(define id-ce-invalidityDate (build-OID id-ce 24))
+(define id-pe (build-OID id-pkix 1))
+(define id-qt (build-OID id-pkix 2))
+(define id-kp (build-OID id-pkix 3))
+(define id-ad (build-OID id-pkix 48))
+(define id-qt-cps (build-OID id-qt 1))
+(define id-qt-unotice (build-OID id-qt 2))
+(define id-ad-ocsp (build-OID id-ad 1))
+(define id-ad-caIssuers (build-OID id-ad 2))
+(define id-ad-timeStamping (build-OID id-ad 3))
+(define id-ad-caRepository (build-OID id-ad 5))
 
- (define id-cms-akey-package (build-OID 2 16 840 1 101 2 1 2 78 5))
-
- (define id-cms-data (build-OID rsadsi (pkcs 1) 7 1))
-
- (define id-cms-signed-data (build-OID rsadsi (pkcs 1) 7 2))
-
- (define id-cms-enveloped-data (build-OID rsadsi (pkcs 1) 7 3))
-
- (define id-cms-digest-data (build-OID rsadsi (pkcs 1) 7 5))
-
- (define id-cms-encrypted-data (build-OID rsadsi (pkcs 1) 7 6))
-
- (define id-cms-auth-data (build-OID rsadsi (pkcs 1) 9 16 1 2))
-
- (define id-cms-auth-enveloped-data (build-OID rsadsi (pkcs 1) 9 16 1 23))
-
- (define id-cms-auth-compressed-data (build-OID rsadsi (pkcs 1) 9 16 1 9))
-
-;;=====================================================================================
-;; the ASN1 structures for CMS signatures
-;;=====================================================================================
-
- (define ContentInfo (SEQUENCE 
-        (contentType ContentType)
-        (content #:explicit 0  ANY )))
-
- (define ContentType OBJECT-IDENTIFIER)
+(define common-name 1)
+(define teletex-common-name 2)
+(define teletex-organization-name 3)
+(define teletex-personal-name 4)
+(define teletex-organizational-unit-names 5)
+(define pds-name 7)
+(define physical-delivery-country-name 8)
+(define postal-code 9)
+(define physical-delivery-office-name 10)
+(define physical-delivery-office-number 11)
+(define extension-OR-address-components 12)
+(define physical-delivery-personal-name 13)
+(define physical-delivery-organization-name 14)
+(define extension-physical-delivery-address-components 15)
+(define unformatted-postal-address 16)
+(define street-address 17)
+(define post-office-box-address 18)
+(define poste-restante-address 19)
+(define unique-postal-name 20)
+(define local-postal-attributes 21)
+(define extended-network-address 22)
+(define terminal-type 23)
+(define teletex-domain-defined-attributes 6)
 
 
- (define SignerIdentifier  (CHOICE
-        (issuerAndSerialNumber IssuerAndSerialNumber)
-         (subjectKeyIdentifier SubjectKeyIdentifier) ))
 
- (define SignedData (SEQUENCE 
-        (version CMSVersion)
-        (digestAlgorithms DigestAlgorithmIdentifiers)
-        (encapContentInfo EncapsulatedContentInfo)
-        (certificates #:implicit 0 CertificateSet #:optional)
-        (crls #:implicit 1 RevocationInfoChoices #:optional)
-        (signerInfos SignerInfos)))
+(define EXTENSIONS
+  (relation
+   #:heading
+   ['oid                              'type]
+   #:tuples
+   [id-ce-authorityKeyIdentifier      AuthorityKeyIdentifier]
+   [id-ce-subjectKeyIdentifier        SubjectKeyIdentifier]
+   [id-ce-keyUsage                    KeyUsage]
+   [id-ce-certificatePolicies         CertificatePolicies]
+   [id-ce-policyMappings              PolicyMappings]
+   [id-ce-subjectAltName              SubjectAltName]
+   [id-ce-issuerAltName               IssuerAltName]
+   [id-ce-subjectDirectoryAttributes  SubjectDirectoryAttributes]
+   [id-ce-basicConstraints            BasicConstraints]
+   [id-ce-nameConstraints             NameConstraints]
+   [id-ce-policyConstraints           PolicyConstraints]
+   [id-ce-extKeyUsage                 ExtKeyUsageSyntax]
+   [id-ce-cRLDistributionPoints       CRLDistributionPoints]
+   [id-ce-inhibitAnyPolicy            InhibitAnyPolicy]
+   [id-ce-freshestCRL                 CRLDistributionPoints]
+   [id-pe-authorityInfoAccess         AuthorityInfoAccessSyntax]
+   [id-pe-subjectInfoAccess           SubjectInfoAccessSyntax]
+   ;; for CRLs only
+   [id-ce-cRLNumber                   CRLNumber]
+   [id-ce-deltaCRLIndicator           CRLNumber]
+   [id-ce-issuingDistributionPoint    IssuingDistributionPoint]
+   [id-ce-freshestCRL                 FreshestCRL]
+   [id-ce-cRLReasons                  CRLReason]
+   [id-ce-invalidityDate              InvalidityDate]
+   [id-ce-certificateIssuer           CertificateIssuer]
+   ))
 
-  (define DigestAlgorithmIdentifiers (SET-OF DigestAlgorithmIdentifier))
 
-  (dedfine SignerInfos (SET-OF SignerInfo))
+(define Extension
+  (SEQUENCE
+   (extnID OBJECT-IDENTIFIER)
+   (critical BOOLEAN #:default #f)
+   (extnValue #:dependent (OCTET-STRING-containing
+                           (relation-ref EXTENSIONS 'oid extnID 'type)))))
 
-  (define EncapsulatedContentInfo (SEQUENCE           
-        (eContentType ContentType)
-        (eContent #:explicigt 0  OCTET-STRING #:optional)))
+(define Extensions (SEQUENCE-OF Extension))
 
 
-  (define SignedAttributes (SET-OF Attribute))
+(define UniqueIdentifier BIT-STRING)
 
-  (define UnsignedAttributes (SET-OF Attribute))  
-
-  (define Attribute (SEQUENCE 
-        (attrType OBJECT-IDENTIFIER)
-        (attrValues (SET-OF AttributeValue))))
-
-  (define AttributeValue ANY)
-
-  (define SignatureValue OCTET-STRING)
-
-  (define SubjectKeyIdentifier OCTET-STRING)
-
-  (define IssuerAndSerialNumber (SEQUENCE
-                                 (issuer Name)
-                                 (serialNumber INTEGER)))
-
+(define AttributeValue ANY)
 (define NameAttribute
   (SEQUENCE
    (type AttributeType)
@@ -1007,23 +1057,229 @@
 (define (NameAttributeValue attr-oid)
   (or (relation-ref ATTRIBUTES 'oid attr-oid 'type) ANY))
 
+(define Attribute
+  (SEQUENCE
+   (type AttributeType)
+   (values #:dependent (SET-OF (AttributeValue type)))))
+
+;; Type definitions
+(define-asn1-type AuthorityKeyIdentifier
+  (SEQUENCE
+   (keyIdentifier #:implicit 0 KeyIdentifier #:optional)
+   (authorityCertIssuer #:implicit 1 GeneralNames #:optional)
+   (authorityCertSerialNumber #:implicit 2 CertificateSerialNumber #:optional)))
+(define-asn1-type KeyIdentifier OCTET-STRING)
+(define-asn1-type SubjectKeyIdentifier KeyIdentifier)
+
+(define KeyUsage
+  (WRAP-NAMES BIT-STRING
+   (list
+    (cons 'digitalSignature 0)
+    (cons 'nonRepudiation 1)
+    (cons 'keyEncipherment 2)
+    (cons 'dataEncipherment 3)
+    (cons 'keyAgreement 4)
+    (cons 'keyCertSign 5)
+    (cons 'cRLSign 6)
+    (cons 'encipherOnly 7)
+    (cons 'decipherOnly 8))))
+
+(define PrivateKeyUsagePeriod
+  (SEQUENCE
+   (notBefore #:implicit 0 GeneralizedTime #:optional)
+   (notAfter #:implicit 1 GeneralizedTime #:optional)))
+
+(define-asn1-type CertificatePolicies (SEQUENCE-OF PolicyInformation))
+(define-asn1-type PolicyInformation
+  (SEQUENCE
+   (policyIdentifier CertPolicyId)
+   (policyQualifiers (SEQUENCE-OF PolicyQualifierInfo) #:optional)))
+(define-asn1-type CertPolicyId OBJECT-IDENTIFIER)
+(define-asn1-type PolicyQualifierInfo
+  (SEQUENCE
+   (policyQualifierId PolicyQualifierId)
+   (qualifier #:dependent (relation-ref POLICY-QUALIFIERS 'oid policyQualifierId 'type))))
+(define-asn1-type PolicyQualifierId OBJECT-IDENTIFIER)
+
+(define CPSuri IA5String)
+
+(define-asn1-type UserNotice
+  (SEQUENCE (noticeRef NoticeReference #:optional) (explicitText DisplayText #:optional)))
+(define-asn1-type NoticeReference
+  (SEQUENCE (organization DisplayText) (noticeNumbers (SEQUENCE-OF INTEGER))))
+(define-asn1-type DisplayText
+  (CHOICE
+   (ia5String IA5String)
+   (visibleString VisibleString)
+   (bmpString BMPString)
+   (utf8String UTF8String)))
+
+(define-asn1-type PolicyMappings
+  (SEQUENCE-OF
+   (SEQUENCE (issuerDomainPolicy CertPolicyId) (subjectDomainPolicy CertPolicyId))))
+
+(define-asn1-type SubjectAltName GeneralNames)
+(define-asn1-type GeneralNames (SEQUENCE-OF GeneralName))
+(define-asn1-type GeneralName
+  (CHOICE
+   (otherName #:implicit 0 AnotherName)
+   (rfc822Name #:implicit 1 IA5String)
+   (dNSName #:implicit 2 IA5String)
+   (x400Address #:implicit 3 ORAddress)
+   (directoryName #:explicit 4 Name)
+   (ediPartyName #:implicit 5 EDIPartyName)
+   (uniformResourceIdentifier #:implicit 6 IA5String)
+   (iPAddress #:implicit 7 OCTET-STRING)
+   (registeredID #:implicit 8 OBJECT-IDENTIFIER)))
+(define-asn1-type AnotherName
+  (SEQUENCE
+   (type-id OBJECT-IDENTIFIER)
+   (value #:explicit 0 (begin ANY #| DEFINED BY type-id |#))))
+(define-asn1-type EDIPartyName
+  (SEQUENCE
+   (nameAssigner #:explicit 0 DirectoryString #:optional)
+   (partyName #:explicit 1 DirectoryString)))
+(define-asn1-type Name GeneralNames)
+
+(define-asn1-type IssuerAltName GeneralNames)
+(define-asn1-type SubjectDirectoryAttributes (SEQUENCE-OF Attribute))
+(define-asn1-type BasicConstraints
+  (SEQUENCE (cA BOOLEAN #:default #f) (pathLenConstraint INTEGER #:optional)))
+(define-asn1-type NameConstraints
+  (SEQUENCE
+   (permittedSubtrees #:implicit 0 GeneralSubtrees #:optional)
+   (excludedSubtrees #:implicit 1 GeneralSubtrees #:optional)))
+(define-asn1-type GeneralSubtrees (SEQUENCE-OF GeneralSubtree))
+(define-asn1-type GeneralSubtree
+  (SEQUENCE
+   (base GeneralName)
+   (minimum #:implicit 0 BaseDistance #:default 0)
+   (maximum #:implicit 1 BaseDistance #:optional)))
+(define-asn1-type BaseDistance INTEGER)
+(define-asn1-type PolicyConstraints
+  (SEQUENCE
+   (requireExplicitPolicy #:implicit 0 SkipCerts #:optional)
+   (inhibitPolicyMapping #:implicit 1 SkipCerts #:optional)))
+(define-asn1-type SkipCerts INTEGER)
+(define-asn1-type CRLDistributionPoints (SEQUENCE-OF DistributionPoint))
+(define-asn1-type DistributionPoint
+  (SEQUENCE
+   (distributionPoint #:explicit 0 DistributionPointName #:optional)
+   (reasons #:implicit 1 ReasonFlags #:optional)
+   (cRLIssuer #:implicit 2 GeneralNames #:optional)))
+(define-asn1-type DistributionPointName
+  (CHOICE
+   (fullName #:implicit 0 GeneralNames)
+   (nameRelativeToCRLIssuer #:implicit 1 RelativeDistinguishedName)))
+(define-asn1-type ReasonFlags
+  (WRAP-NAMES BIT-STRING
+   (list
+    (cons 'unused 0)
+    (cons 'keyCompromise 1)
+    (cons 'cACompromise 2)
+    (cons 'affiliationChanged 3)
+    (cons 'superseded 4)
+    (cons 'cessationOfOperation 5)
+    (cons 'certificateHold 6)
+    (cons 'privilegeWithdrawn 7)
+    (cons 'aACompromise 8))))
+(define-asn1-type ExtKeyUsageSyntax (SEQUENCE-OF KeyPurposeId))
+(define-asn1-type KeyPurposeId OBJECT-IDENTIFIER)
+(define-asn1-type InhibitAnyPolicy SkipCerts)
+(define-asn1-type FreshestCRL CRLDistributionPoints)
+(define-asn1-type AuthorityInfoAccessSyntax (SEQUENCE-OF AccessDescription))
+(define-asn1-type AccessDescription
+  (SEQUENCE (accessMethod OBJECT-IDENTIFIER) (accessLocation GeneralName)))
+(define-asn1-type SubjectInfoAccessSyntax (SEQUENCE-OF AccessDescription))
+(define-asn1-type CRLNumber INTEGER)
+(define-asn1-type IssuingDistributionPoint
+  (SEQUENCE
+   (distributionPoint #:explicit 0 DistributionPointName #:optional)
+   (onlyContainsUserCerts #:implicit 1 BOOLEAN #:default #f)
+   (onlyContainsCACerts #:implicit 2 BOOLEAN #:default #f)
+   (onlySomeReasons #:implicit 3 ReasonFlags #:optional)
+   (indirectCRL #:implicit 4 BOOLEAN #:default #f)
+   (onlyContainsAttributeCerts #:implicit 5 BOOLEAN #:default #f)))
+(define-asn1-type BaseCRLNumber CRLNumber)
+(define-asn1-type CRLReason
+  (WRAP-NAMES ENUMERATED
+   (list
+    (cons 'unspecified 0)
+    (cons 'keyCompromise 1)
+    (cons 'cACompromise 2)
+    (cons 'affiliationChanged 3)
+    (cons 'superseded 4)
+    (cons 'cessationOfOperation 5)
+    (cons 'certificateHold 6)
+    (cons 'removeFromCRL 8)
+    (cons 'privilegeWithdrawn 9)
+    (cons 'aACompromise 10))))
+(define-asn1-type CertificateIssuer GeneralNames)
+
+
+(define-asn1-type HoldInstructionCode OBJECT-IDENTIFIER)
+(define-asn1-type InvalidityDate GeneralizedTime)
+
+(define POLICY-QUALIFIERS
+  (relation
+   #:heading
+   ['oid            'type]
+   #:tuples
+   [id-qt-cps       CPSuri]
+   [id-qt-unotice   UserNotice]))
+(define-asn1-type ORAddress
+  (SEQUENCE
+   (built-in-standard-attributes BuiltInStandardAttributes)
+   (built-in-domain-defined-attributes BuiltInDomainDefinedAttributes #:optional)
+   (extension-attributes ExtensionAttributes #:optional)))
+
+(define-asn1-type BuiltInStandardAttributes
+  (SEQUENCE
+   (country-name CountryName #:optional)
+   (administration-domain-name AdministrationDomainName #:optional)
+   (network-address #:implicit 0 NetworkAddress #:optional)
+   (terminal-identifier #:implicit 1 TerminalIdentifier #:optional)
+   (private-domain-name #:explicit 2 PrivateDomainName #:optional)
+   (organization-name #:implicit 3 OrganizationName #:optional)
+   (numeric-user-identifier #:implicit 4 NumericUserIdentifier #:optional)
+   (personal-name #:implicit 5 PersonalName #:optional)
+   (organizational-unit-names #:implicit 6 OrganizationalUnitNames #:optional)))
+
+(define CountryName
+  (TAG #:explicit #:application 1
+       (CHOICE
+        (x121-dcc-code NumericString)
+        (iso-3166-alpha2-code PrintableString))))
+(define AdministrationDomainName
+  (TAG #:explicit #:application 2
+       (CHOICE
+        (numeric NumericString)
+        (printable PrintableString))))
+(define-asn1-type NetworkAddress X121Address)
+(define X121Address NumericString)
+(define TerminalIdentifier PrintableString)
+(define PrivateDomainName
+  (CHOICE (numeric NumericString) (printable PrintableString)))
+(define OrganizationName PrintableString)
+(define NumericUserIdentifier NumericString)
+(define PersonalName
+  (SET
+   (surname #:implicit 0 PrintableString)
+   (given-name #:implicit 1 PrintableString #:optional)
+   (initials #:implicit 2 PrintableString #:optional)
+   (generation-qualifier #:implicit 3 PrintableString #:optional)))
+
+(define-asn1-type OrganizationalUnitNames (SEQUENCE-OF OrganizationalUnitName))
+(define OrganizationalUnitName PrintableString)
 (define RelativeDistinguishedName (SET-OF AttributeTypeAndValue))
-
 (define RDNSequence (SEQUENCE-OF RelativeDistinguishedName))
-(define DistinguishedName RDNSequence)
-(define Name (CHOICE (rdnSequence RDNSequence)))
 
-(define CMSVersion INTEGER)
-;;{ v0(0), v1(1), v2(2), v3(3), v4(4), v5(5) }
-
-(define DigestAlgorithmIdentifier AlgorithmIdentifier)
-(define SignatureAlgorithmIdentifier AlgorithmIdentifier)
-
-(define SignerInfo (SEQUENCE
-        (version CMSVersion)
-        (sid SignerIdentifier)
-        (digestAlgorithm DigestAlgorithmIdentifier)
-        (signedAttrs #:implicit 1 SignedAttributes #:optional)
-        (signatureAlgorithm SignatureAlgorithmIdentifier)
-        (signature SignatureValue)
-        (unsignedAttrs #:implicit 2 UnsignedAttributes #:optional)))
+(define-asn1-type BuiltInDomainDefinedAttributes (SEQUENCE-OF BuiltInDomainDefinedAttribute))
+(define BuiltInDomainDefinedAttribute
+  (SEQUENCE (type PrintableString) (value PrintableString)))
+(define-asn1-type ExtensionAttributes (SET-OF ExtensionAttribute))
+(define-asn1-type ExtensionAttribute
+  (SEQUENCE
+   (extension-attribute-type #:implicit 0 INTEGER)
+   (extension-attribute-value
+    #:explicit 1 (begin ANY #| DEFINED BY extension-attribute-type |#))))

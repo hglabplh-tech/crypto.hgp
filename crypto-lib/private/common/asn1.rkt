@@ -4,7 +4,7 @@
 ;; it under the terms of the GNU Lesser General Public License as published
 ;; by the Free Software Foundation, either version 3 of the License, or
 ;; (at your option) any later version.
-;; 
+;; us
 ;; This library is distributed in the hope that it will be useful,
 ;; but WITHOUT ANY WARRANTY; without even the implied warranty of
 ;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -847,3 +847,183 @@
    [id-blake2s224 'blake2s-224 NULL 'preferredAbsent]
    [id-blake2s256 'blake2s-256 NULL 'preferredAbsent]
    ))
+
+;;=========================================================================================
+;;Some general definitions
+;;=========================================================================================
+(define id-at (OID (joint-iso-ccitt 2) (ds 5) 4))
+(define id-at-name (build-OID id-at 41))
+(define id-at-surname (build-OID id-at 4))
+(define id-at-givenName (build-OID id-at 42))
+(define id-at-initials (build-OID id-at 43))
+(define id-at-generationQualifier (build-OID id-at 44))
+(define id-at-commonName (build-OID id-at 3))
+(define id-at-localityName (build-OID id-at 7))
+(define id-at-stateOrProvinceName (build-OID id-at 8))
+(define id-at-organizationName (build-OID id-at 10))
+(define id-at-organizationalUnitName (build-OID id-at 11))
+(define id-at-title (build-OID id-at 12))
+(define id-at-dnQualifier (build-OID id-at 46))
+(define id-at-countryName (build-OID id-at 6))
+(define id-at-serialNumber (build-OID id-at 5))
+(define id-at-pseudonym (build-OID id-at 65))
+(define id-domainComponent (OID 0 9 2342 19200300 100 1 25))
+
+(define id-emailAddress (build-OID pkcs-9 1))
+(define -SomeString
+  (CHOICE
+   
+   (printableString PrintableString)
+   (universalString UniversalString)
+   (utf8String UTF8String)
+   (bmpString BMPString)))
+(define X520name -SomeString)
+(define X520CommonName -SomeString)
+(define X520LocalityName -SomeString)
+(define X520StateOrProvinceName -SomeString)
+(define X520OrganizationName -SomeString)
+(define X520OrganizationalUnitName -SomeString)
+(define X520Title -SomeString)
+(define X520Pseudonym -SomeString)
+(define DirectoryString -SomeString)
+(define X520dnQualifier PrintableString)
+(define X520countryName PrintableString)
+(define X520SerialNumber PrintableString)
+(define DomainComponent IA5String)
+(define EmailAddress IA5String)
+
+(define ATTRIBUTES
+  (relation
+   #:heading
+   ['oid                         'type]
+   #:tuples
+   [id-at-name                   X520name]
+   [id-at-surname                X520name]
+   [id-at-givenName              X520name]
+   [id-at-initials               X520name]
+   [id-at-generationQualifier    X520name]
+   [id-at-commonName             X520CommonName]
+   [id-at-localityName           X520LocalityName]
+   [id-at-stateOrProvinceName    X520StateOrProvinceName]
+   [id-at-organizationName       X520OrganizationName]
+   [id-at-organizationalUnitName X520OrganizationalUnitName]
+   [id-at-title                  X520Title]
+   [id-at-dnQualifier            X520dnQualifier]
+   [id-at-countryName            X520countryName]
+   [id-at-serialNumber           X520SerialNumber]
+   [id-at-pseudonym              X520Pseudonym]
+   [id-domainComponent           DomainComponent]
+   ;; Legacy attributes
+   [id-emailAddress              EmailAddress]))
+
+
+;;=======================================================================================
+;; CMS signature (former pkcs7) definitions to build the asn1 signature structures for serialize / deserialice
+;;========================================================================================
+
+;;=======================================================================================
+;; the OIDs for cms signatures
+;;=======================================================================================
+ (define id-cms-contentInfo (build-OID rsadsi  1 9 16 1 6))
+
+ (define id-cms-akey-package (build-OID 2 16 840 1 101 2 1 2 78 5))
+
+ (define id-cms-data (build-OID rsadsi (pkcs 1) 7 1))
+
+ (define id-cms-signed-data (build-OID rsadsi (pkcs 1) 7 2))
+
+ (define id-cms-enveloped-data (build-OID rsadsi (pkcs 1) 7 3))
+
+ (define id-cms-digest-data (build-OID rsadsi (pkcs 1) 7 5))
+
+ (define id-cms-encrypted-data (build-OID rsadsi (pkcs 1) 7 6))
+
+ (define id-cms-auth-data (build-OID rsadsi (pkcs 1) 9 16 1 2))
+
+ (define id-cms-auth-enveloped-data (build-OID rsadsi (pkcs 1) 9 16 1 23))
+
+ (define id-cms-auth-compressed-data (build-OID rsadsi (pkcs 1) 9 16 1 9))
+
+;;=====================================================================================
+;; the ASN1 structures for CMS signatures
+;;=====================================================================================
+
+ (define ContentInfo (SEQUENCE 
+        (contentType ContentType)
+        (content #:explicit 0  ANY )))
+
+ (define ContentType OBJECT-IDENTIFIER)
+
+
+ (define SignerIdentifier  (CHOICE
+        (issuerAndSerialNumber IssuerAndSerialNumber)
+         (subjectKeyIdentifier SubjectKeyIdentifier) ))
+
+ (define SignedData (SEQUENCE 
+        (version CMSVersion)
+        (digestAlgorithms DigestAlgorithmIdentifiers)
+        (encapContentInfo EncapsulatedContentInfo)
+        (certificates #:implicit 0 CertificateSet #:optional)
+        (crls #:implicit 1 RevocationInfoChoices #:optional)
+        (signerInfos SignerInfos)))
+
+  (define DigestAlgorithmIdentifiers (SET-OF DigestAlgorithmIdentifier))
+
+  (dedfine SignerInfos (SET-OF SignerInfo))
+
+  (define EncapsulatedContentInfo (SEQUENCE           
+        (eContentType ContentType)
+        (eContent #:explicigt 0  OCTET-STRING #:optional)))
+
+
+  (define SignedAttributes (SET-OF Attribute))
+
+  (define UnsignedAttributes (SET-OF Attribute))  
+
+  (define Attribute (SEQUENCE 
+        (attrType OBJECT-IDENTIFIER)
+        (attrValues (SET-OF AttributeValue))))
+
+  (define AttributeValue ANY)
+
+  (define SignatureValue OCTET-STRING)
+
+  (define SubjectKeyIdentifier OCTET-STRING)
+
+  (define IssuerAndSerialNumber (SEQUENCE
+                                 (issuer Name)
+                                 (serialNumber INTEGER)))
+
+(define NameAttribute
+  (SEQUENCE
+   (type AttributeType)
+   (values #:dependent (SET-OF (AttributeValue type)))))
+(define AttributeTypeAndValue
+  (SEQUENCE
+   (type AttributeType)
+   (value #:dependent (NameAttributeValue type))))
+
+(define AttributeType OBJECT-IDENTIFIER)
+(define (NameAttributeValue attr-oid)
+  (or (relation-ref ATTRIBUTES 'oid attr-oid 'type) ANY))
+
+(define RelativeDistinguishedName (SET-OF AttributeTypeAndValue))
+
+(define RDNSequence (SEQUENCE-OF RelativeDistinguishedName))
+(define DistinguishedName RDNSequence)
+(define Name (CHOICE (rdnSequence RDNSequence)))
+
+(define CMSVersion INTEGER)
+;;{ v0(0), v1(1), v2(2), v3(3), v4(4), v5(5) }
+
+(define DigestAlgorithmIdentifier AlgorithmIdentifier)
+(define SignatureAlgorithmIdentifier AlgorithmIdentifier)
+
+(define SignerInfo (SEQUENCE
+        (version CMSVersion)
+        (sid SignerIdentifier)
+        (digestAlgorithm DigestAlgorithmIdentifier)
+        (signedAttrs #:implicit 1 SignedAttributes #:optional)
+        (signatureAlgorithm SignatureAlgorithmIdentifier)
+        (signature SignatureValue)
+        (unsignedAttrs #:implicit 2 UnsignedAttributes #:optional)))
