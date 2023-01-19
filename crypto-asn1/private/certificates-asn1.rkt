@@ -28,6 +28,9 @@
 ;; structures forf Attribute cedrtificates
 ;;==================================================================================================
 
+;;==================================================================================================
+;;Attribute certificate V2
+
   (define-asn1-type AttributeCertificate (SEQUENCE 
                    (acinfo               AttributeCertificateInfo)
                    (signatureAlgorithm   AlgorithmIdentifier)
@@ -157,5 +160,123 @@
                    (acSerial          INTEGER)
                    (attrs             (SEQUENCE-OF NameAttribute))))
              
+
+
+;==================================================================================================
+;;Attribute certificate V1
+
+ (define v1 1)
+
+ (define-asn1-type AttributeCertificateV1  (SEQUENCE 
+     (acInfo AttributeCertificateInfoV1)
+     (signatureAlgorithm AlgorithmIdentifier)
+     (signature BIT-STRING)))
+
+  (define-asn1-type AttributeCertificateInfoV1 (SEQUENCE 
+     (version INTEGER #:default v1)
+     (subject (CHOICE 
+       (baseCertificateID  #:explicit 0 IssuerSerial)
+         ;;-- associated with a Public Key Certificate
+       (subjectName #:explicit 1 GeneralNames)))
+         ;;-- associated with a name
+     (issuer GeneralNames)
+     (signature AlgorithmIdentifier)
+     (serialNumber CertificateSerialNumber)
+     (attCertValidityPeriod AttCertValidityPeriod)
+     (attributes (SEQUENCE-OF Attribute))
+     (issuerUniqueID UniqueIdentifier #:optional)
+     (extensions Extensions #:optional)))
+
+;;================================================================================================
+;; X509 Certificate definition
+
+(define Validity (SEQUENCE (notBefore GeneralizedTime) (notAfter GeneralizedTime)))
+(define-asn1-type Certificate
+  (SEQUENCE
+   (tbsCertificate TBSCertificate)
+   (signatureAlgorithm AlgorithmIdentifier/DER)
+   (signature BIT-STRING #:optional)))
+
+(define-asn1-type TBSCertificate
+  (SEQUENCE
+   (version #:explicit 0 Version #:default v1)
+   (serialNumber CertificateSerialNumber)
+   (signature AlgorithmIdentifier/DER)
+   (issuer Name)
+   (validity Validity)
+   (subject Name)
+   (subjectPublicKeyInfo ANY/DER)
+   (issuerUniqueID #:implicit 1 UniqueIdentifier #:optional)
+   (subjectUniqueID #:implicit 2 UniqueIdentifier #:optional)
+   (extensions #:explicit 3 Extensions #:optional)))
+
+
+
+(define Version INTEGER)
+
+(define v3 2)
+
+;;==================================================================================================
+;; ExtendedCertificate defrinition
+
+;;Certificate definitions
+(define DigestAlgorithmIdentifier AlgorithmIdentifier)
+(define SignatureAlgorithmIdentifier AlgorithmIdentifier)
+(define-asn1-type UnauthAttributes (SET-OF Attribute))
+
+(define-asn1-type ExtendedCertificateOrCertificate (CHOICE
+     (certificate Certificate)
+     (extendedCertificate #:implicit 0 ExtendedCertificate)))
+
+ (define-asn1-type ExtendedCertificate (SEQUENCE 
+     (extendedCertificateInfo ExtendedCertificateInfo)
+     (signatureAlgorithm SignatureAlgorithmIdentifier)
+     (signature Signature)))
+
+  (define-asn1-type ExtendedCertificateInfo (SEQUENCE 
+     (version CMSVersion)
+     (certificate Certificate)
+     (attributes UnauthAttributes)))
+
+   (define-asn1-type Signature BIT-STRING)
+
+
+(define-asn1-type CertificateList
+  (SEQUENCE
+   (tbsCertList ANY/DER)
+   (signatureAlgorithm (AlgorithmIdentifier SIGNING))
+   (signature BIT-STRING)))
+
+(define SIGNING
+  (relation
+   #:heading
+   ['oid                    'pk  'digest 'params  'params-presence]
+   #:tuples
+   ;; From RFC 5912:
+   [md5WithRSAEncryption    'rsa 'md5    NULL     'required]
+   [sha1WithRSAEncryption   'rsa 'sha1   NULL     'required]
+   [sha224WithRSAEncryption 'rsa 'sha224 NULL     'required]
+   [sha256WithRSAEncryption 'rsa 'sha256 NULL     'required]
+   [sha384WithRSAEncryption 'rsa 'sha384 NULL     'required]
+   [sha512WithRSAEncryption 'rsa 'sha512 NULL     'required]
+   [id-RSASSA-PSS           'rsa #f      RSASSA-PSS-params 'required]
+   [dsa-with-sha1           'dsa 'sha1   NULL     'absent]
+   [id-dsa-with-sha224      'dsa 'sha224 NULL     'absent]
+   [id-dsa-with-sha256      'dsa 'sha256 NULL     'absent]
+   [id-dsa-with-sha384      'dsa 'sha384 NULL     'absent]
+   [id-dsa-with-sha512      'dsa 'sha512 NULL     'absent]
+   [ecdsa-with-SHA1         'ec  'sha1   NULL     'absent]
+   [ecdsa-with-SHA224       'ec  'sha224 NULL     'absent]
+   [ecdsa-with-SHA256       'ec  'sha256 NULL     'absent]
+   [ecdsa-with-SHA384       'ec  'sha384 NULL     'absent]
+   [ecdsa-with-SHA512       'ec  'sha512 NULL     'absent]
+
+   ;; From RFC 8410:
+   [id-Ed25519              'eddsa #f    #f       'absent]
+   [id-Ed448                'eddsa #f    #f       'absent]
+   ))
+
+
+   
 
 

@@ -1280,3 +1280,6 @@
    (extension-attribute-type #:implicit 0 INTEGER)
    (extension-attribute-value
     #:explicit 1 (begin ANY #| DEFINED BY extension-attribute-type |#))))
+
+
+(define CMSVersion INTEGER)

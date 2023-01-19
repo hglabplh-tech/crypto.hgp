@@ -154,7 +154,7 @@
 (define Validity (SEQUENCE (notBefore Time) (notAfter Time)))
 (define UniqueIdentifier BIT-STRING)
 
-(define SubjectPublicKeyInfo/DER ANY/DER)
+
 
 (define Extension
   (SEQUENCE
