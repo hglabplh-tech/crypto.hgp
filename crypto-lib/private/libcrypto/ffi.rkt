@@ -1100,3 +1100,27 @@
 (define-crypto EVP_PKEY_CTX_set_rsa_pss_saltlen
   (_fun _EVP_PKEY_CTX _int -> _int)
   #:fail (K -EVP_PKEY_CTX_set_rsa_pss_saltlen))
+
+
+;;=======================================================================
+;; CMS signature ffi description / definition
+;;=======================================================================
+
+(define-cpointer-type _X509)
+
+(define-crypto X509_free
+  (_fun _X509 -> _void)
+  #:wrap (deallocator))
+
+(define-crypto X509_new
+  (_fun -> _X509/null)
+  #:wrap (compose (allocator X509_free) (err-wrap/pointer 'X509_new)))
+
+ 
+(define _px509/null (_cpointer/null (_cpointer/null _X509/null)))
+(define _charpp (_cpointer/null _bytes))
+
+(define-crypto d2i_X509 (_fun
+                          (_pointer = #f) _dptr_to_bytes _long -> _X509/null)
+  #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509)))
+                        
