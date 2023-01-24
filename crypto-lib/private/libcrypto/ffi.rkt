@@ -1116,11 +1116,12 @@
   (_fun -> _X509/null)
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'X509_new)))
 
- 
-(define _px509/null (_cpointer/null (_cpointer/null _X509/null)))
-(define _charpp (_cpointer/null _bytes))
+
+ ;;X509 *d2i_X509(X509 **px, const unsigned char **in, long len);
 
 (define-crypto d2i_X509 (_fun
                           (_pointer = #f) _dptr_to_bytes _long -> _X509/null)
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509)))
+
+
                         

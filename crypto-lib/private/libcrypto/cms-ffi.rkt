@@ -7,6 +7,7 @@
          openssl/libcrypto
          binaryio/reader
          rnrs/io/ports-6
+         "ffi.rkt"
          "../common/error.rkt")
 
 (provide (protect-out (all-defined-out))
@@ -194,7 +195,55 @@
   #:wrap (deallocator))
 
 (define BN-no-gc ((deallocator) void))
+
+;;========================================
+;; CMS signing
+;;========================================
+
+;;defined flags
+( define CMS_SIGNERINFO_ISSUER_SERIAL    0)
+( define CMS_SIGNERINFO_KEYIDENTIFIER    1)
+
+( define CMS_RECIPINFO_NONE              -1)
+( define CMS_RECIPINFO_TRANS             0)
+( define CMS_RECIPINFO_AGREE             1)
+( define CMS_RECIPINFO_KEK               2)
+( define CMS_RECIPINFO_PASS              3)
+( define CMS_RECIPINFO_OTHER             4)
+
+
+
+( define CMS_TEXT                        #x1)
+( define CMS_NOCERTS                     #x2)
+( define CMS_NO_CONTENT_VERIFY           #x4)
+( define CMS_NO_ATTR_VERIFY              #x8)
+( define CMS_NOINTERN                    #x10)
+( define CMS_NO_SIGNER_CERT_VERIFY       #x20)
+( define CMS_NOVERIFY                    #x20)
+( define CMS_DETACHED                    #x40)
+( define CMS_BINARY                      #x80)
+( define CMS_NOATTR                      #x100)
+( define CMS_NOSMIMECAP                  #x200)
+( define CMS_NOOLDMIMETYPE               #x400)
+( define CMS_CRLFEOL                     #x800)
+( define CMS_STREAM                      #x1000)
+( define CMS_NOCRL                       #x2000)
+( define CMS_PARTIAL                     #x4000)
+( define CMS_REUSE_DIGEST                #x8000)
+( define CMS_USE_KEYID                   #x10000)
+( define CMS_DEBUG_DECRYPT               #x20000)
+( define CMS_KEY_PARAM                   #x40000)
+( define CMS_ASCIICRLF                   #x80000)
+( define CMS_CADES                       #x100000)
+( define CMS_USE_ORIGINATOR_KEYID        #x200000)
+
+
+
+;;========================================
+;;fun definitions and struct pinters
+;;========================================
 (define-cpointer-type _X509)
+
 
 (define-crypto X509_free
   (_fun _X509 -> _void)
@@ -205,12 +254,28 @@
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'X509_new)))
 
  
-(define _px509/null (_cpointer/null (_cpointer/null _X509/null)))
-(define _charpp (_cpointer/null _bytes))
 
+;;TODO:cleanup moving to ffi.rkt... defining interface with classes
+;; define read funcion for getting a _X509 from DER
 (define-crypto d2i_X509 (_fun
                           (_pointer = #f) _dptr_to_bytes _long -> _X509/null)
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509)))
+
+;;BIO create mem BIO for CMS signing
+;;BIO *BIO_new_mem_buf(const void *buf, int len);
+(define-cpointer-type _BIO)
+
+(define-crypto BIO_new_mem_buf (_fun
+                 _dptr_to_bytes _int -> _BIO/null)
+                 #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
+
+;;CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
+                           ;;BIO *data, unsigned int flags);
+(define-cpointer-type _CMS_ContentInfo)
+
+(define-crypto CMS_sign (_fun
+                _X509 _EVP_PKEY (_pointer = #f) _BIO (_int = 0) -> _CMS_ContentInfo)
+                #:wrap (err-wrap/pointer 'CMS_sign))
                           
 ;; some pre-code to test
 
@@ -224,27 +289,31 @@
        )
        (b-read-bytes reader file-size)
        )))
-(define generate-cms-signature-files (lambda(cert-fname data-fname)
+(define generate-cms-signature-files (lambda(cert-fname pkey-fname data-fname)
                                  (let* ([cert-bytes (read-bytes-from-file cert-fname)]
+                                        [pkey-bytes (read-bytes-from-file pkey-fname)]
                                        [data-bytes  (read-bytes-from-file data-fname)])
-                                   (generate-cms-signature-bytes cert-bytes data-bytes))))
+                                   (generate-cms-signature-bytes cert-bytes pkey-bytes data-bytes))))
                                        
-(define generate-cms-signature-bytes(lambda (cert-bytes data-bytes)
+(define generate-cms-signature-bytes(lambda (cert-bytes pkey-bytes data-bytes)
                                       (let* ([cert-len (bytes-length cert-bytes)]
-                                             [data-len (bytes-length data-bytes)]
-                                             [_p_cert-bytes (_dptr-to-bytes cert-bytes)]
-                                             [_p_data-bytes (_dptr-to-bytes data-bytes)]
-                                             [_pp_cert-bytes (_dptr_to_dptr _p_cert-bytes)] )
+                                             [pkey-len (bytes-length pkey-bytes)]
+                                             [data-len (bytes-length data-bytes)]                                                                                          
+                                             [_bio_mem (BIO_new_mem_buf data-bytes data-len)]
+                                             [_x509Cert (d2i_X509 cert-bytes cert-len)]
+                                             [_pkey (d2i_PrivateKey EVP_PKEY_RSA pkey-bytes pkey-len)] )
                                       (begin
                                         (display cert-bytes)
                                         (display data-bytes)
+                                        (display "\n")                                        
                                         (display cert-len)
-                                        (display "\n")
-                                        (display _pp_cert-bytes)
-                                        (display "\n")
+                                        (display "\n")                                        
                                         (display data-len)
-                                        (d2i_X509 cert-bytes cert-len))
+                                        (display "\n")
+                                        (display _bio_mem)
+                                        (CMS_sign  _x509Cert _pkey _bio_mem)
+                                        )
                                         )))
 
-(generate-cms-signature-files "ffi.rkt" "pkey.rkt")
+(generate-cms-signature-files "data/domain.der" "data/privkey.der" "pkey.rkt")
 ;;(d2i_X509 #f #f 6)
