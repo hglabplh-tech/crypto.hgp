@@ -1105,8 +1105,51 @@
 ;;=======================================================================
 ;; CMS signature ffi description / definition
 ;;=======================================================================
+;;defined flags
+( define CMS_SIGNERINFO_ISSUER_SERIAL    0)
+( define CMS_SIGNERINFO_KEYIDENTIFIER    1)
+
+( define CMS_RECIPINFO_NONE              -1)
+( define CMS_RECIPINFO_TRANS             0)
+( define CMS_RECIPINFO_AGREE             1)
+( define CMS_RECIPINFO_KEK               2)
+( define CMS_RECIPINFO_PASS              3)
+( define CMS_RECIPINFO_OTHER             4)
+
+
+
+( define CMS_TEXT                        #x1)
+( define CMS_NOCERTS                     #x2)
+( define CMS_NO_CONTENT_VERIFY           #x4)
+( define CMS_NO_ATTR_VERIFY              #x8)
+( define CMS_NOINTERN                    #x10)
+( define CMS_NO_SIGNER_CERT_VERIFY       #x20)
+( define CMS_NOVERIFY                    #x20)
+( define CMS_DETACHED                    #x40)
+( define CMS_BINARY                      #x80)
+( define CMS_NOATTR                      #x100)
+( define CMS_NOSMIMECAP                  #x200)
+( define CMS_NOOLDMIMETYPE               #x400)
+( define CMS_CRLFEOL                     #x800)
+( define CMS_STREAM                      #x1000)
+( define CMS_NOCRL                       #x2000)
+( define CMS_PARTIAL                     #x4000)
+( define CMS_REUSE_DIGEST                #x8000)
+( define CMS_USE_KEYID                   #x10000)
+( define CMS_DEBUG_DECRYPT               #x20000)
+( define CMS_KEY_PARAM                   #x40000)
+( define CMS_ASCIICRLF                   #x80000)
+( define CMS_CADES                       #x100000)
+( define CMS_USE_ORIGINATOR_KEYID        #x200000)
+
+
+
+;;========================================
+;;fun definitions and struct pinters
+;;========================================
 
 (define-cpointer-type _X509)
+
 
 (define-crypto X509_free
   (_fun _X509 -> _void)
@@ -1116,12 +1159,58 @@
   (_fun -> _X509/null)
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'X509_new)))
 
+ 
 
- ;;X509 *d2i_X509(X509 **px, const unsigned char **in, long len);
-
+;;TODO:cleanup moving to ffi.rkt... defining interface with classes
+;; define read funcion for getting a _X509 from DER
 (define-crypto d2i_X509 (_fun
                           (_pointer = #f) _dptr_to_bytes _long -> _X509/null)
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509)))
 
+;;BIO create mem BIO for CMS signing
+;;BIO *BIO_new_mem_buf(const void *buf, int len);
+(define-cpointer-type _BIO)
+
+
+(define-crypto BIO_new_mem_buf (_fun
+                 _pointer _int -> _BIO/null)
+                 #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
+
+
+
+
+
+;; CMS signing
+
+;;define a *char pointer
+(define buff-pointer-new (lambda(buffer)
+                                    (let ([p (malloc _bytes (bytes-length buffer) 'atomic)])
+                                      (memcpy p buffer (bytes-length buffer) _byte) p)))
+;;CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
+                           ;;BIO *data, unsigned int flags);
+
+(define-cpointer-type _CMS_ContentInfo)
+
+(define-crypto CMS_sign (_fun
+                _X509 _EVP_PKEY (_pointer = #f) _BIO _uint -> _CMS_ContentInfo)
+                #:wrap (err-wrap/pointer 'CMS_sign))
+
+;;int CMS_final(CMS_ContentInfo *cms, BIO *data, BIO *dcont, unsigned int flags);
+
+(define-crypto CMS_final (_fun _CMS_ContentInfo _BIO/null _BIO/null _uint -> _int)
+  #:wrap (err-wrap 'CMS_final))
+
+;;int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs, X509_STORE *store,
+;;               BIO *indata, BIO *out, unsigned int flags);
+(define-crypto CMS_verify(_fun _CMS_ContentInfo (_pointer = #f) (_pointer = #f)
+               _BIO/null _BIO/null _uint -> _int)
+  #:wrap (err-wrap 'CMS_verify))
+
+
+                          
+;; some pre-code to test
+
+;;X509 *d2i_X509(X509 **px, const unsigned char **in, long len);
+ ;;X509 *d2i_X509(X509 **px, const unsigned char **in, long len);
 
                         
