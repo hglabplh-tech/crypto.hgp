@@ -1145,8 +1145,22 @@
 
 
 ;;========================================
-;;fun definitions and struct pinters
+;;fun definitions and struct pointers
 ;;========================================
+
+
+
+
+
+;;BIO create mem BIO for CMS signing
+;;BIO *BIO_new_mem_buf(const void *buf, int len);
+(define-cpointer-type _BIO)
+
+
+(define-crypto BIO_new_mem_buf (_fun
+                 _pointer _int -> _BIO/null)
+                 #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
+
 
 (define-cpointer-type _X509)
 
@@ -1160,25 +1174,14 @@
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'X509_new)))
 
  
-
-;;TODO:cleanup moving to ffi.rkt... defining interface with classes
 ;; define read funcion for getting a _X509 from DER
 (define-crypto d2i_X509 (_fun
-                          (_pointer = #f) _dptr_to_bytes _long -> _X509/null)
+                          (_pointer = #f) _dptr_to_bytes _long -> _X509)
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509)))
 
-;;BIO create mem BIO for CMS signing
-;;BIO *BIO_new_mem_buf(const void *buf, int len);
-(define-cpointer-type _BIO)
-
-
-(define-crypto BIO_new_mem_buf (_fun
-                 _pointer _int -> _BIO/null)
-                 #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
-
-
-
-
+(define-crypto d2i_X509_bio (_fun
+                          _BIO (_pointer = #f) -> _X509)
+  #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509_bio)))
 
 ;; CMS signing
 
@@ -1186,10 +1189,32 @@
 (define buff-pointer-new (lambda(buffer)
                                     (let ([p (malloc _bytes (bytes-length buffer) 'atomic)])
                                       (memcpy p buffer (bytes-length buffer) _byte) p)))
+;; try to define stack
+(define-cpointer-type _STACK)
+
+(define-crypto OPENSSL_sk_new_null (_fun -> _STACK)
+  #:wrap (err-wrap/pointer 'OPENSSL_sk_new_null))
+ 
+(define-crypto OPENSSL_sk_push(_fun _STACK  _pointer -> _int)
+   #:wrap (err-wrap 'OPENSSL_sk_pusk))
+
+(define-crypto OPENSSL_sk_pop(_fun _STACK -> _pointer)
+   #:wrap (err-wrap/pointer 'OPENSSL_sk_pop))
+
+(define-crypto OPENSSL_sk_free(_fun _STACK -> _void)
+   #:wrap (deallocator))
+
+  
 ;;CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
                            ;;BIO *data, unsigned int flags);
 
 (define-cpointer-type _CMS_ContentInfo)
+
+
+(define-crypto i2d_CMS_ContentInfo (_fun
+                                    _CMS_ContentInfo (_ptr i _pointer) -> _int)
+  #:wrap (err-wrap 'i2d_CMS_ContentInfo))
+;;int i2d_CMS_ContentInfo(CMS_ContentInfo *a, unsigned char **pp);
 
 (define-crypto CMS_sign (_fun
                 _X509 _EVP_PKEY (_pointer = #f) _BIO _uint -> _CMS_ContentInfo)
@@ -1208,9 +1233,9 @@
 
 
                           
-;; some pre-code to test
+
 
 ;;X509 *d2i_X509(X509 **px, const unsigned char **in, long len);
  ;;X509 *d2i_X509(X509 **px, const unsigned char **in, long len);
 
-                        
+     
