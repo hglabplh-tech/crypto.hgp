@@ -8,8 +8,7 @@
          binaryio/reader
          rnrs/io/ports-6
          racket/class
-         racket/match crypto crypto/libcrypto
-         "ffi.rkt"
+         racket/match crypto crypto/libcrypto         
          "cmssig.rkt"
          "../common/error.rkt")
 
@@ -46,41 +45,6 @@
                                        (write-bytes-to-file out-name cms-sig-der)
                                    )))
                                        
-(define generate-cms-signature-bytes(lambda (cert-bytes ca-cert-bytes pkey-bytes data-bytes flags)
-                                      (let* ([cert-len (bytes-length cert-bytes)]
-                                             [ca-cert-len (bytes-length ca-cert-bytes)]
-                                             [pkey-len (bytes-length pkey-bytes)]
-                                             [data-len (bytes-length data-bytes)]                                                                                          
-                                             [bio_mem_data (BIO_new_mem_buf (buff-pointer-new data-bytes) data-len)]
-                                             [bio_mem_x509 (BIO_new_mem_buf (buff-pointer-new cert-bytes) cert-len)]
-                                             [bio_mem_x509-ca (BIO_new_mem_buf (buff-pointer-new ca-cert-bytes) ca-cert-len)]
-                                             [x509Cert (d2i_X509_bio bio_mem_x509)]
-                                             [x509Cert-ca (d2i_X509_bio bio_mem_x509-ca)]
-                                             [pkey (d2i_PrivateKey EVP_PKEY_RSA pkey-bytes pkey-len)]
-                                             [cert-stack (OPENSSL_sk_new_null)]                                             
-                                             [stackret (OPENSSL_sk_push cert-stack x509Cert-ca)])                                             
-                                        
-                                      (cond [(not (ptr-equal? x509Cert #f))
-                                            (begin
-                                        (display cert-stack)
-                                        (display stackret)
-                                        (display cert-bytes)
-                                        (display data-bytes)
-                                        (display "\n")                                        
-                                        (display cert-len)
-                                        (display "\n")                                        
-                                        (display data-len)
-                                        (display "\n")
-                                        (display bio_mem_data)
-                                        (display (ptr-ref x509Cert _pointer))                                        
-                                        (let* (
-                                               [content-info (CMS_sign  x509Cert pkey cert-stack bio_mem_data flags)]
-                                              )
-                                          (cond [(eq? (CMS_verify content-info cert-stack #f #f CMS_NO_SIGNER_CERT_VERIFY) 1)
-                                                (i2d i2d_CMS_ContentInfo content-info)])
-                                        
-                                        ))]
-                                        ))))
 
 (define outage (generate-cms-signature-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
                                              "data/freeware-user-key.der" "pkey.rkt" "data/cms-sig.pkcs7" 0))
