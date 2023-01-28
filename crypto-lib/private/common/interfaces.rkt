@@ -45,7 +45,9 @@
          pk-impl?
          pk-parameters?
          pk-key?
-         kdf-impl?)
+         kdf-impl?
+
+         cms-sign<%>)
 
 ;; ============================================================
 ;; General Notes
@@ -226,6 +228,9 @@
 (define pk-sign-pad/c (or/c #f 'pkcs1-v1.5 'pss 'pss*))
 (define pk-enc-pad/c (or/c #f 'pkcs1-v1.5 'oaep))
 
+
+    
+
 (define pk-impl<%>
   (interface (impl<%>)
     [generate-key    (->m pk-config/c pk-key?)]
@@ -283,4 +288,12 @@
 (define kdf-impl<%>
   (interface (impl<%>)
     [kdf0       (->m kdf-params/c bytes? (or/c #f bytes?) bytes?)]
+    ))
+
+;;==============================================================
+;; CMS sign impl interface
+
+(define cms-sign<%>
+  (interface (impl<%>)
+    [cms-sign-sure    (->m bytes? bytes? bytes? bytes? integer?)]
     ))
