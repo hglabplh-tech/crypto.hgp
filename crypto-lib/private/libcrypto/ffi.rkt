@@ -1217,13 +1217,18 @@
 ;;int i2d_CMS_ContentInfo(CMS_ContentInfo *a, unsigned char **pp);
 
 (define-crypto CMS_sign (_fun
-                _X509 _EVP_PKEY _STACK/null _BIO _uint -> _CMS_ContentInfo/null)
+                _X509 _EVP_PKEY _STACK/null _BIO _uint -> _CMS_ContentInfo)
                 #:wrap (err-wrap/pointer 'CMS_sign))
 
 ;;int CMS_final(CMS_ContentInfo *cms, BIO *data, BIO *dcont, unsigned int flags);
 
 (define-crypto CMS_final (_fun _CMS_ContentInfo _BIO/null _BIO/null _uint -> _int)
   #:wrap (err-wrap 'CMS_final))
+
+;;int CMS_add1_cert(CMS_ContentInfo *cms, X509 *cert);
+
+(define-crypto CMS_add1_cert (_fun _CMS_ContentInfo _X509 -> _int)
+  #:wrap (err-wrap 'CMS_add1_cert))
 
 ;;int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs, X509_STORE *store,
 ;;               BIO *indata, BIO *out, unsigned int flags);
