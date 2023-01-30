@@ -35,6 +35,7 @@
 (define libcrypto-cms-sign%
   (class object%
     (field [content-info-ptr #f]
+           [signer-info-ptr #f]
            [x509-ptr #f]
            [data-buffer #f]
            [cert-chain-stack (OPENSSL_sk_new_null)])
@@ -87,6 +88,19 @@
                (CMS_add1_cert (get-field content-info-ptr this) cert-to-add))
                
         ))
+    
+    (define/public (cms-add-signer cert-bytes pkey-bytes digest-name flags)
+      (let* ([bio-mem-cert (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]                                             
+             [cert-to-add (d2i_X509_bio bio-mem-cert)]
+             [pkey (d2i_PrivateKey EVP_PKEY_RSA pkey-bytes (bytes-length pkey-bytes))]
+             [evp-digest (EVP_get_digestbyname digest-name)]
+             [signer-info (CMS_add1_signer (get-field content-info-ptr this) cert-to-add pkey evp-digest flags)])
+        
+        (set-field! signer-info-ptr this signer-info)              
+        ))
+
+    (define/public (cms-signerinfo-sign)
+      (CMS_SignerInfo_sign (get-field signer-info-ptr this)))
     
     (define/public (cms-sign-finalize data-bytes flags)
       (let* ([data-len (bytes-length data-bytes)]                                                                                          

@@ -1209,6 +1209,7 @@
                            ;;BIO *data, unsigned int flags);
 
 (define-cpointer-type _CMS_ContentInfo)
+(define-cpointer-type _CMS_SignerInfo)
 
 
 (define-crypto i2d_CMS_ContentInfo (_fun
@@ -1229,6 +1230,17 @@
 
 (define-crypto CMS_add1_cert (_fun _CMS_ContentInfo _X509 -> _int)
   #:wrap (err-wrap 'CMS_add1_cert))
+
+;;CMS_SignerInfo *CMS_add1_signer(CMS_ContentInfo *cms, X509 *signcert,
+                                ;;EVP_PKEY *pkey, const EVP_MD *md,
+                                ;;unsigned int flags);
+
+(define-crypto CMS_add1_signer (_fun _CMS_ContentInfo _X509 _EVP_PKEY _EVP_MD _uint -> _CMS_SignerInfo/null)
+  #:wrap (err-wrap/pointer 'CMS_add1_signer))
+
+;;int CMS_SignerInfo_sign(CMS_SignerInfo *si);
+(define-crypto CMS_SignerInfo_sign (_fun _CMS_SignerInfo -> _int)
+   #:wrap (err-wrap 'CMS_SignerInfo_sign))
 
 ;;int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs, X509_STORE *store,
 ;;               BIO *indata, BIO *out, unsigned int flags);
