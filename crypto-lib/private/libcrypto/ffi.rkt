@@ -1196,13 +1196,29 @@
   #:wrap (err-wrap/pointer 'OPENSSL_sk_new_null))
  
 (define-crypto OPENSSL_sk_push(_fun _STACK  _pointer -> _int)
-   #:wrap (err-wrap 'OPENSSL_sk_pusk))
+   #:wrap (err-wrap 'OPENSSL_sk_push))
 
 (define-crypto OPENSSL_sk_pop(_fun _STACK -> _pointer)
    #:wrap (err-wrap/pointer 'OPENSSL_sk_pop))
 
+(define-crypto OPENSSL_sk_num(_fun _STACK -> _int)
+   #:wrap (err-wrap 'OPENSSL_sk_num))
+
+(define-crypto OPENSSL_sk_value(_fun _STACK  _int -> _pointer)
+   #:wrap (err-wrap/pointer 'OPENSSL_sk_value))
+
 (define-crypto OPENSSL_sk_free(_fun _STACK -> _void)
    #:wrap (deallocator))
+
+(define sk-typed-pop (lambda (stack type)
+                    (let ([value (OPENSSL_sk_pop stack)])
+                      (cast value _pointer type)
+                      )))
+
+(define sk-typed-value (lambda (stack index type)
+                    (let ([value (OPENSSL_sk_value stack index)])
+                      (cast value _pointer type)
+                      )))
 
   
 ;;CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
@@ -1239,15 +1255,30 @@
   #:wrap (err-wrap/pointer 'CMS_add1_signer))
 
 ;;int CMS_SignerInfo_sign(CMS_SignerInfo *si);
+
 (define-crypto CMS_SignerInfo_sign (_fun _CMS_SignerInfo -> _int)
    #:wrap (err-wrap 'CMS_SignerInfo_sign))
 
 ;;int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs, X509_STORE *store,
 ;;               BIO *indata, BIO *out, unsigned int flags);
+
 (define-crypto CMS_verify(_fun _CMS_ContentInfo _STACK/null (_pointer = #f)
                _BIO/null _BIO/null _uint -> _int)
   #:wrap (err-wrap 'CMS_verify))
 
+;; Recipient signature
+
+;;STACK_OF(CMS_SignerInfo) *CMS_get0_SignerInfos(CMS_ContentInfo *cms);
+
+(define-crypto CMS_get0_SignerInfos(_fun _CMS_ContentInfo -> _STACK/null)
+  #:wrap (err-wrap/pointer 'CMS_get0_SignerInfos))
+
+;; CMS_ContentInfo *CMS_sign_receipt(CMS_SignerInfo *si, X509 *signcert,
+;;                                  EVP_PKEY *pkey, STACK_OF(X509) *certs,
+;;                                  unsigned int flags);
+
+(define-crypto CMS_sign_receipt(_fun _CMS_SignerInfo _X509 _EVP_PKEY _STACK/null _int -> _CMS_ContentInfo)
+    #:wrap (err-wrap/pointer 'CMS_sign_receipt))
 
                           
 
