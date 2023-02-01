@@ -48,18 +48,18 @@
 ;; the ASN1 structures for CMS signatures
 ;;=====================================================================================
 
- (define ContentInfo (SEQUENCE 
+ (define-asn1-type ContentInfo (SEQUENCE 
         (contentType ContentType)
-        (content #:explicit 0  ANY )))
+        (content #:explicit 0 #:dependent (ANY contentType) )))
 
  (define ContentType OBJECT-IDENTIFIER)
 
 
- (define SignerIdentifier  (CHOICE
+ (define-asn1-type SignerIdentifier  (CHOICE
         (issuerAndSerialNumber IssuerAndSerialNumber)
          (subjectKeyIdentifier SubjectKeyIdentifier) ))
 
- (define SignedData (SEQUENCE 
+ (define-asn1-type SignedData (SEQUENCE 
         (version CMSVersion)
         (digestAlgorithms DigestAlgorithmIdentifiers)
         (encapContentInfo EncapsulatedContentInfo)
@@ -75,7 +75,7 @@
 
  (define-asn1-type OtherRevocationInfoFormat  (SEQUENCE
         (otherRevInfoFormat OBJECT-IDENTIFIER)
-        (otherRevInfo ANY)))
+        (otherRevInfo #:dependent (ANY otherRevInfoFormat))))
 
  (define-asn1-type CertificateChoices  (CHOICE 
      (certificate Certificate)
@@ -231,7 +231,7 @@
 
  (define-asn1-type OtherKeyAttribute (SEQUENCE 
         (keyAttrId OBJECT-IDENTIFIER)
-        (keyAttr ANY #:optional))) ;;DEFINED BY keyAttrId OPTIONAL }
+        (keyAttr #:dependent (ANY keyAttrId) #:optional))) ;;DEFINED BY keyAttrId OPTIONAL }
 
 (define-asn1-type PasswordRecipientInfo (SEQUENCE 
         (version CMSVersion)   ;;-- Always set to 0
@@ -242,8 +242,24 @@
 
 (define-asn1-type OtherRecipientInfo (SEQUENCE
         (oriType OBJECT-IDENTIFIER)
-        (oriValue ANY ))) ;;DEFINED BY oriType
+        (oriValue #:dependent (ANY oriType)))) ;;DEFINED BY oriType
 
+ (define-asn1-type AuthenticatedData  (SEQUENCE 
+        (version CMSVersion)
+        (originatorInfo #:implicit 0 OriginatorInfo #:optional)
+        (recipientInfos RecipientInfos)
+        (macAlgorithm MessageAuthenticationCodeAlgorithm)
+        (digestAlgorithm #:explicit 1 DigestAlgorithmIdentifier #:optional)
+        (encapContentInfo EncapsulatedContentInfo)
+        (authAttrs #:implicit 2 AuthAttributes #:optional)
+        (mac MessageAuthenticationCode)
+        (unauthAttrs #:implicit 3 UnauthAttributes #:optional)))
+
+ (define-asn1-type AuthAttributes (SET-OF Attribute))
+
+ (define-asn1-type UnauthAttributes (SET-OF Attribute))
+
+ (define-asn1-type MessageAuthenticationCode OCTET-STRING)
 
 
 
@@ -251,10 +267,25 @@
 
 (define-asn1-type EncryptedKey OCTET-STRING)
 
-;;algorithm and other identifiers.....
-(define-asn1-type ContentEncryptionAlgorithmIdentifier AlgorithmIdentifier)
-(define-asn1-type KeyEncryptionAlgorithmIdentifier  AlgorithmIdentifier)
-(define-asn1-type KeyDerivationAlgorithmIdentifier AlgorithmIdentifier)
+;;algorithm and other identifiers..... and primitive definitions
+
+(define MessageDigest OCTET-STRING)
+
+ (define SigningTime  Time)
+
+ (define-asn1-type Time (CHOICE
+     (utcTime UTCTime)
+     (generalTime GeneralizedTime)))
+
+(define-asn1-type Countersignature SignerInfo)
+
+(define ContentEncryptionAlgorithmIdentifier AlgorithmIdentifier)
+
+(define KeyEncryptionAlgorithmIdentifier  AlgorithmIdentifier)
+
+(define KeyDerivationAlgorithmIdentifier AlgorithmIdentifier)
+
+(define MessageAuthenticationCodeAlgorithm AlgorithmIdentifier)
 
 
 
