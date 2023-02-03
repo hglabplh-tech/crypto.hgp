@@ -1277,7 +1277,7 @@
 ;;                                  EVP_PKEY *pkey, STACK_OF(X509) *certs,
 ;;                                  unsigned int flags);
 
-(define-crypto CMS_sign_receipt(_fun _CMS_SignerInfo _X509 _EVP_PKEY _STACK/null _int -> _CMS_ContentInfo)
+(define-crypto CMS_sign_receipt(_fun _CMS_SignerInfo _X509 _EVP_PKEY _STACK/null _int -> _CMS_ContentInfo/null)
     #:wrap (err-wrap/pointer 'CMS_sign_receipt))
 
                           

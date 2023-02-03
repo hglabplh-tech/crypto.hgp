@@ -295,5 +295,5 @@
 
 (define cms-sign<%>
   (interface (impl<%>)
-    [cms-sign-sure    (->m bytes? bytes? bytes? bytes? integer?)]
+    [cms-sign-sure    (->m bytes? bytes? bytes? bytes? bytes? integer?)]
     ))

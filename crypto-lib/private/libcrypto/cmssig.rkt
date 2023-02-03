@@ -34,12 +34,17 @@
 
 (define libcrypto-cms-sign%
   (class object%
+    ;;(class* impl-base% (cms-sign<%>)
+    ;;(inherit-field factory)
+    ;;(super-new (spec 'libcrypto-cms-sign))
+  (super-new)
+
     (field [content-info-ptr #f]
            [signer-info-ptr #f]
            [x509-ptr #f]
            [data-buffer #f]
            [cert-chain-stack (OPENSSL_sk_new_null)])
-    (super-new)
+    
       (define/public (cms-sign-sure cert-bytes ca-cert-bytes pkey-bytes data-bytes flags)
                                       (let* ([cert-len (bytes-length cert-bytes)]
                                              [ca-cert-len (bytes-length ca-cert-bytes)]
@@ -94,7 +99,8 @@
              [cert-to-add (d2i_X509_bio bio-mem-cert)]
              [pkey (d2i_PrivateKey EVP_PKEY_RSA pkey-bytes (bytes-length pkey-bytes))]
              [evp-digest (EVP_get_digestbyname digest-name)]
-             [signer-info (CMS_add1_signer (get-field content-info-ptr this) cert-to-add pkey evp-digest flags)])
+             [signer-info (CMS_add1_signer (get-field content-info-ptr this) cert-to-add pkey evp-digest flags)]
+             )
         
         (set-field! signer-info-ptr this signer-info)              
         ))
@@ -113,6 +119,23 @@
     
     (define/public (get-cms-content-info/DER)      
             (i2d i2d_CMS_ContentInfo (get-field content-info-ptr this)))
+
+    (define/public (cms-sign-receipt cert-bytes pkey-bytes flags)
+      (let* ([signer-info (get-first-signer-info)]
+            [bio-mem-cert (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]
+            [cert-to-sign (d2i_X509_bio bio-mem-cert)]
+            [pkey (d2i_PrivateKey EVP_PKEY_RSA pkey-bytes (bytes-length pkey-bytes))])
+        (CMS_sign_receipt signer-info cert-to-sign pkey #f flags)
+        ))
+    
+    (define/private (get-first-signer-info)
+      (let ([stack (CMS_get0_SignerInfos (get-field content-info-ptr this))])
+        (cond [(not (eq? (OPENSSL_sk_num stack) 0))
+              (let ([sig-info (sk-typed-value stack 0 _CMS_SignerInfo)])
+                (begin (display (ptr-ref sig-info _pointer))
+                       sig-info)
+                )])
+        ))
     ))
 
 

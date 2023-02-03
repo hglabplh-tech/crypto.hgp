@@ -5,9 +5,11 @@
          racket/match crypto crypto/libcrypto         
          "cmssig.rkt"
          "ffi.rkt"
-         "../common/error.rkt")
+         
+          
+         )
 
-(crypto-factories libcrypto-factory)
+
 ;;========================================
 ;; CMS signing
 ;;========================================
@@ -20,7 +22,7 @@
                                         [ca-cert-bytes (read-bytes-from-file ca-cert-fname)]
                                         [pkey-bytes (read-bytes-from-file pkey-fname)]
                                         [data-bytes  (read-bytes-from-file data-fname)]
-                                        [sign-impl (make-object libcrypto-cms-sign%)]
+                                        [sign-impl (make-object libcrypto-cms-sign% )]
                                        [cms-sig-der (send sign-impl cms-sign-sure cert-bytes ca-cert-bytes pkey-bytes data-bytes flags)])
                                        (write-bytes-to-file out-name cms-sig-der)
                                    )))
@@ -36,7 +38,7 @@
                                        (begin (send sign-impl cms-init-signing cert-bytes pkey-bytes data-bytes flags)
                                               (display (send sign-impl cms-add-cert ca-cert-bytes))                                              
                                               (display (send sign-impl cms-add-signer sig-cert-bytes sig-pkey-bytes "SHA512" sig-flags))                                              
-                                              (display (send sign-impl cms-sign-finalize data-bytes 0))
+                                              (display (send sign-impl cms-sign-finalize data-bytes 0))                                             
                                               (let ([cms-sig-der (send sign-impl get-cms-content-info/DER)]                                                    )
                                        (begin (write-bytes-to-file out-name cms-sig-der))))
                                    )))
@@ -49,7 +51,7 @@
                                              "data/freeware-user-key.der" "pkey.rkt" "data/cms-sig-ext.pkcs7" "data/freeware-user-cert_1.der"
                                              "data/freeware-user-key_1.der" 0 0))
 (display outage)
-(display (EVP_get_digestbyname "SHA512"))
+(display (EVP_get_cipherbyname "AES-256-CBC"))
 
 ;;(define outage-det (generate-cms-signature-files "data/domain.der" "data/privkey.der" "pkey.rkt" "data/cms-sig-det.pkcs7" CMS_DETACHED))
 ;;(display outage-det)
