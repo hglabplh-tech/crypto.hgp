@@ -228,3 +228,4 @@
          (and di (new sp800-108-double-pipeline-hmac-kdf-impl% (spec spec) (factory this) (di di)))]
         [_ #f]))
     ))
+

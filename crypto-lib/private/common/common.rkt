@@ -79,6 +79,7 @@
     (define/public (get-impl) impl)
     (super-new)))
 
+
 ;; ----------------------------------------
 
 (define state-mixin
