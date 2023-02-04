@@ -1226,6 +1226,7 @@
 
 (define-cpointer-type _CMS_ContentInfo)
 (define-cpointer-type _CMS_SignerInfo)
+(define-cpointer-type _CMS_RecipientInfo)
 
 
 (define-crypto i2d_CMS_ContentInfo (_fun
@@ -1280,10 +1281,17 @@
 (define-crypto CMS_sign_receipt(_fun _CMS_SignerInfo _X509 _EVP_PKEY _STACK/null _int -> _CMS_ContentInfo/null)
     #:wrap (err-wrap/pointer 'CMS_sign_receipt))
 
-                          
+;;CMS_ContentInfo *CMS_encrypt(STACK_OF(X509) *certs, BIO *in,
+  ;;                           const EVP_CIPHER *cipher, unsigned int flags);                          
+
+(define-crypto CMS_encrypt(_fun _STACK _BIO _EVP_CIPHER _int -> _CMS_ContentInfo)
+  #:wrap (err-wrap/pointer 'CMS_encrypt))
 
 
-;;X509 *d2i_X509(X509 **px, const unsigned char **in, long len);
- ;;X509 *d2i_X509(X509 **px, const unsigned char **in, long len);
 
-     
+;;CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms, X509 *recip, unsigned int flags);
+
+(define-crypto CMS_add1_recipient_cert(_fun _CMS_ContentInfo _X509 _uint -> _CMS_RecipientInfo/null)
+  #:wrap (err-wrap/pointer 'CMS_add1_recipient_cert))
+
+;;CMS_RecipientInfo *CMS_add0_recipient_key(CMS_ContentInfo *cms, int nid, unsigned char *key, size_t keylen, unsigned char *id, size_t idlen, ASN1_GENERALIZEDTIME *date, ASN1_OBJECT *otherTypeId, ASN1_TYPE *otherType);

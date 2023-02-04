@@ -100,11 +100,32 @@
              [pkey (d2i_PrivateKey EVP_PKEY_RSA pkey-bytes (bytes-length pkey-bytes))]
              [evp-digest (EVP_get_digestbyname digest-name)]
              [signer-info (CMS_add1_signer (get-field content-info-ptr this) cert-to-add pkey evp-digest flags)]
-             )
-        
+             )      
         (set-field! signer-info-ptr this signer-info)              
         ))
 
+    ;;encrypt enveloped data
+
+    (define/public (cms-encrypt cert-bytes data-bytes cipher-name flags)
+      (let* ([evp-cipher (EVP_get_cipherbyname cipher-name)]
+            [cert-len (bytes-length cert-bytes)]
+            [data-len (bytes-length data-bytes)]                                                                                          
+            [bio_mem_data (BIO_new_mem_buf (buff-pointer-new data-bytes) data-len)]
+            [bio_mem_x509 (BIO_new_mem_buf (buff-pointer-new cert-bytes) cert-len)]
+            [x509Cert (d2i_X509_bio bio_mem_x509)]
+            [stack_len (OPENSSL_sk_push cert-chain-stack x509Cert)]
+            [content-info (CMS_encrypt cert-chain-stack bio_mem_data evp-cipher (bitwise-ior flags CMS_PARTIAL))])
+        
+      (begin (set-field! content-info-ptr this content-info)
+               (set-field! x509-ptr this x509Cert)
+               (set-field! data-buffer this data-bytes))))
+
+    (define/public (cms-add-receipient-cert cert-bytes flags)
+      (let* ([bio-mem-cert (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]                                             
+             [cert-to-add (d2i_X509_bio bio-mem-cert)])
+          (CMS_add1_recipient_cert (get-field content-info-ptr this) cert-to-add flags))
+      )
+;; end encrypt enveloped data
     (define/public (cms-signerinfo-sign)
       (CMS_SignerInfo_sign (get-field signer-info-ptr this)))
     
@@ -115,7 +136,8 @@
               (CMS_final (get-field content-info-ptr this) bio-mem-data #f (bitwise-ior flags CMS_PARTIAL))
         )))
     
-    (define/public (get-cms-content-info ) (get-field content-info-ptr this))
+    (define/public (get-cms-content-info )
+      (get-field content-info-ptr this))
     
     (define/public (get-cms-content-info/DER)      
             (i2d i2d_CMS_ContentInfo (get-field content-info-ptr this)))

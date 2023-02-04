@@ -37,7 +37,25 @@
                                         [sign-impl (make-object libcrypto-cms-sign%)])
                                        (begin (send sign-impl cms-init-signing cert-bytes pkey-bytes data-bytes flags)
                                               (display (send sign-impl cms-add-cert ca-cert-bytes))                                              
-                                              (display (send sign-impl cms-add-signer sig-cert-bytes sig-pkey-bytes "SHA512" sig-flags))                                              
+                                              (display (send sign-impl cms-add-signer sig-cert-bytes sig-pkey-bytes "SHA512" sig-flags))                                             
+                                              (display (send sign-impl cms-sign-finalize data-bytes 0))                                             
+                                              (let ([cms-sig-der (send sign-impl get-cms-content-info/DER)]                                                    )
+                                       (begin (write-bytes-to-file out-name cms-sig-der))))
+                                   )))
+
+(define generate-cms-envelop-from-files (lambda(cert-fname ca-cert-fname pkey-fname data-fname out-name sig-cert-fname
+                                                                 sig-pkey-fname flags sig-flags)
+                                 (let* ([cert-bytes (read-bytes-from-file cert-fname)]
+                                        [ca-cert-bytes (read-bytes-from-file ca-cert-fname)]
+                                        [pkey-bytes (read-bytes-from-file pkey-fname)]
+                                        [data-bytes  (read-bytes-from-file data-fname)]
+                                        [sig-cert-bytes (read-bytes-from-file sig-cert-fname)]
+                                        [sig-pkey-bytes (read-bytes-from-file sig-pkey-fname)]
+                                        [sign-impl (make-object libcrypto-cms-sign%)])
+                                       (begin 
+                                              (display (send sign-impl cms-encrypt cert-bytes data-bytes "AES-256-CBC" flags))                                              
+                                              (display (send sign-impl cms-add-receipient-cert sig-cert-bytes 0))
+                                             ;; (display (send sign-impl cms-sign-receipt cert-bytes pkey-bytes flags))
                                               (display (send sign-impl cms-sign-finalize data-bytes 0))                                             
                                               (let ([cms-sig-der (send sign-impl get-cms-content-info/DER)]                                                    )
                                        (begin (write-bytes-to-file out-name cms-sig-der))))
@@ -49,6 +67,10 @@
 
 (define outage-ext (generate-cms-from-signature-files-ext "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
                                              "data/freeware-user-key.der" "pkey.rkt" "data/cms-sig-ext.pkcs7" "data/freeware-user-cert_1.der"
+                                             "data/freeware-user-key_1.der" 0 0))
+
+(define outage-envelop (generate-cms-envelop-from-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
+                                             "data/freeware-user-key.der" "pkey.rkt" "data/cms-enveloped.pkcs7" "data/freeware-user-cert_1.der"
                                              "data/freeware-user-key_1.der" 0 0))
 (display outage)
 (display (EVP_get_cipherbyname "AES-256-CBC"))
