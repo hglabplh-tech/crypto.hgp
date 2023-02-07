@@ -28,7 +28,7 @@
          "../common/cmssigbase.rkt"
          "../common/asn1.rkt"
          "../common/error.rkt"
-         "ffi.rkt"
+         "cmssigffi.rkt"
          "digest.rkt")
 (provide (all-defined-out))
 

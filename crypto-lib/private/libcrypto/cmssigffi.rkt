@@ -1,0 +1,225 @@
+;; Copyright 2012-2018 Ryan Culpepper
+;; Copyright 2007-2009 Dimitris Vyzovitis <vyzo at media.mit.edu>
+;; 
+;; This library is free software: you can redistribute it and/or modify
+;; it under the terms of the GNU Lesser General Public License as published
+;; by the Free Software Foundation, either version 3 of the License, or
+;; (at your option) any later version.
+;; 
+;; This library is distributed in the hope that it will be useful,
+;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;; GNU Lesser General Public License for more details.
+;; 
+;; You should have received a copy of the GNU Lesser General Public License
+;; along with this library.  If not, see <http://www.gnu.org/licenses/>.
+
+#lang racket/base
+(require ffi/unsafe
+         ffi/unsafe/define
+         ffi/unsafe/alloc
+         ffi/unsafe/atomic
+         openssl/libcrypto
+         "../common/error.rkt"
+         "ffi.rkt")
+(provide (protect-out (all-defined-out))
+         libcrypto
+         d2i_PrivateKey
+         EVP_PKEY_RSA
+         i2d
+         EVP_get_digestbyname
+         EVP_get_cipherbyname)
+
+;;=======================================================================
+;; CMS signature ffi description / definition
+;;=======================================================================
+;;defined flags
+( define CMS_SIGNERINFO_ISSUER_SERIAL    0)
+( define CMS_SIGNERINFO_KEYIDENTIFIER    1)
+
+( define CMS_RECIPINFO_NONE              -1)
+( define CMS_RECIPINFO_TRANS             0)
+( define CMS_RECIPINFO_AGREE             1)
+( define CMS_RECIPINFO_KEK               2)
+( define CMS_RECIPINFO_PASS              3)
+( define CMS_RECIPINFO_OTHER             4)
+
+
+
+( define CMS_TEXT                        #x1)
+( define CMS_NOCERTS                     #x2)
+( define CMS_NO_CONTENT_VERIFY           #x4)
+( define CMS_NO_ATTR_VERIFY              #x8)
+( define CMS_NOINTERN                    #x10)
+( define CMS_NO_SIGNER_CERT_VERIFY       #x20)
+( define CMS_NOVERIFY                    #x20)
+( define CMS_DETACHED                    #x40)
+( define CMS_BINARY                      #x80)
+( define CMS_NOATTR                      #x100)
+( define CMS_NOSMIMECAP                  #x200)
+( define CMS_NOOLDMIMETYPE               #x400)
+( define CMS_CRLFEOL                     #x800)
+( define CMS_STREAM                      #x1000)
+( define CMS_NOCRL                       #x2000)
+( define CMS_PARTIAL                     #x4000)
+( define CMS_REUSE_DIGEST                #x8000)
+( define CMS_USE_KEYID                   #x10000)
+( define CMS_DEBUG_DECRYPT               #x20000)
+( define CMS_KEY_PARAM                   #x40000)
+( define CMS_ASCIICRLF                   #x80000)
+( define CMS_CADES                       #x100000)
+( define CMS_USE_ORIGINATOR_KEYID        #x200000)
+
+
+
+;;========================================
+;;fun definitions and struct pointers
+;;========================================
+
+
+
+
+
+;;BIO create mem BIO for CMS signing
+;;BIO *BIO_new_mem_buf(const void *buf, int len);
+(define-cpointer-type _BIO)
+
+
+(define-crypto BIO_new_mem_buf (_fun
+                 _pointer _int -> _BIO/null)
+                 #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
+
+
+(define-cpointer-type _X509)
+
+
+(define-crypto X509_free
+  (_fun _X509 -> _void)
+  #:wrap (deallocator))
+
+(define-crypto X509_new
+  (_fun -> _X509/null)
+  #:wrap (compose (allocator X509_free) (err-wrap/pointer 'X509_new)))
+
+ 
+;; define read funcion for getting a _X509 from DER
+(define-crypto d2i_X509 (_fun
+                          (_pointer = #f) _dptr_to_bytes _long -> _X509)
+  #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509)))
+
+(define-crypto d2i_X509_bio (_fun
+                          _BIO (_pointer = #f) -> _X509)
+  #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509_bio)))
+
+;; CMS signing
+
+;;define a *char pointer
+(define buff-pointer-new (lambda(buffer)
+                                    (let ([p (malloc _bytes (bytes-length buffer) 'atomic)])
+                                      (memcpy p buffer (bytes-length buffer) _byte) p)))
+;; try to define stack
+(define-cpointer-type _STACK)
+
+(define-crypto OPENSSL_sk_new_null (_fun -> _STACK)
+  #:wrap (err-wrap/pointer 'OPENSSL_sk_new_null))
+ 
+(define-crypto OPENSSL_sk_push(_fun _STACK  _pointer -> _int)
+   #:wrap (err-wrap 'OPENSSL_sk_push))
+
+(define-crypto OPENSSL_sk_pop(_fun _STACK -> _pointer)
+   #:wrap (err-wrap/pointer 'OPENSSL_sk_pop))
+
+(define-crypto OPENSSL_sk_num(_fun _STACK -> _int)
+   #:wrap (err-wrap 'OPENSSL_sk_num))
+
+(define-crypto OPENSSL_sk_value(_fun _STACK  _int -> _pointer)
+   #:wrap (err-wrap/pointer 'OPENSSL_sk_value))
+
+(define-crypto OPENSSL_sk_free(_fun _STACK -> _void)
+   #:wrap (deallocator))
+
+(define sk-typed-pop (lambda (stack type)
+                    (let ([value (OPENSSL_sk_pop stack)])
+                      (cast value _pointer type)
+                      )))
+
+(define sk-typed-value (lambda (stack index type)
+                    (let ([value (OPENSSL_sk_value stack index)])
+                      (cast value _pointer type)
+                      )))
+
+  
+;;CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
+                           ;;BIO *data, unsigned int flags);
+
+(define-cpointer-type _CMS_ContentInfo)
+(define-cpointer-type _CMS_SignerInfo)
+(define-cpointer-type _CMS_RecipientInfo)
+
+
+(define-crypto i2d_CMS_ContentInfo (_fun
+                                    _CMS_ContentInfo (_ptr i _pointer) -> _int)
+  #:wrap (err-wrap 'i2d_CMS_ContentInfo))
+;;int i2d_CMS_ContentInfo(CMS_ContentInfo *a, unsigned char **pp);
+
+(define-crypto CMS_sign (_fun
+                _X509 _EVP_PKEY _STACK/null _BIO _uint -> _CMS_ContentInfo)
+                #:wrap (err-wrap/pointer 'CMS_sign))
+
+;;int CMS_final(CMS_ContentInfo *cms, BIO *data, BIO *dcont, unsigned int flags);
+
+(define-crypto CMS_final (_fun _CMS_ContentInfo _BIO/null _BIO/null _uint -> _int)
+  #:wrap (err-wrap 'CMS_final))
+
+;;int CMS_add1_cert(CMS_ContentInfo *cms, X509 *cert);
+
+(define-crypto CMS_add1_cert (_fun _CMS_ContentInfo _X509 -> _int)
+  #:wrap (err-wrap 'CMS_add1_cert))
+
+;;CMS_SignerInfo *CMS_add1_signer(CMS_ContentInfo *cms, X509 *signcert,
+                                ;;EVP_PKEY *pkey, const EVP_MD *md,
+                                ;;unsigned int flags);
+
+(define-crypto CMS_add1_signer (_fun _CMS_ContentInfo _X509 _EVP_PKEY _EVP_MD _uint -> _CMS_SignerInfo/null)
+  #:wrap (err-wrap/pointer 'CMS_add1_signer))
+
+;;int CMS_SignerInfo_sign(CMS_SignerInfo *si);
+
+(define-crypto CMS_SignerInfo_sign (_fun _CMS_SignerInfo -> _int)
+   #:wrap (err-wrap 'CMS_SignerInfo_sign))
+
+;;int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs, X509_STORE *store,
+;;               BIO *indata, BIO *out, unsigned int flags);
+
+(define-crypto CMS_verify(_fun _CMS_ContentInfo _STACK/null (_pointer = #f)
+               _BIO/null _BIO/null _uint -> _int)
+  #:wrap (err-wrap 'CMS_verify))
+
+;; Recipient signature
+
+;;STACK_OF(CMS_SignerInfo) *CMS_get0_SignerInfos(CMS_ContentInfo *cms);
+
+(define-crypto CMS_get0_SignerInfos(_fun _CMS_ContentInfo -> _STACK/null)
+  #:wrap (err-wrap/pointer 'CMS_get0_SignerInfos))
+
+;; CMS_ContentInfo *CMS_sign_receipt(CMS_SignerInfo *si, X509 *signcert,
+;;                                  EVP_PKEY *pkey, STACK_OF(X509) *certs,
+;;                                  unsigned int flags);
+
+(define-crypto CMS_sign_receipt(_fun _CMS_SignerInfo _X509 _EVP_PKEY _STACK/null _int -> _CMS_ContentInfo/null)
+    #:wrap (err-wrap/pointer 'CMS_sign_receipt))
+
+;;CMS_ContentInfo *CMS_encrypt(STACK_OF(X509) *certs, BIO *in,
+  ;;                           const EVP_CIPHER *cipher, unsigned int flags);                          
+
+(define-crypto CMS_encrypt(_fun _STACK _BIO _EVP_CIPHER _int -> _CMS_ContentInfo)
+  #:wrap (err-wrap/pointer 'CMS_encrypt))
+
+
+
+;;CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms, X509 *recip, unsigned int flags);
+
+(define-crypto CMS_add1_recipient_cert(_fun _CMS_ContentInfo _X509 _uint -> _CMS_RecipientInfo/null)
+  #:wrap (err-wrap/pointer 'CMS_add1_recipient_cert))
+
+;;CMS_RecipientInfo *CMS_add0_recipient_key(CMS_ContentInfo *cms, int nid, unsigned char *key, size_t keylen, unsigned char *id, size_t idlen, ASN1_GENERALIZEDTIME *date, ASN1_OBJECT *otherTypeId, ASN1_TYPE *otherType);
