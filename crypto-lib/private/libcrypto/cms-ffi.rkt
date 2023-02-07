@@ -23,7 +23,9 @@
                                         [pkey-bytes (read-bytes-from-file pkey-fname)]
                                         [data-bytes  (read-bytes-from-file data-fname)]
                                         [sign-impl (make-object libcrypto-cms-sign% )]
-                                       [cms-sig-der (send sign-impl cms-sign-sure cert-bytes ca-cert-bytes pkey-bytes data-bytes flags)])
+                                       [cms-sig-der (send sign-impl cms-sign-sure cert-bytes (send sign-impl
+                                                                                                   cert-list-to-stack (list ca-cert-bytes))
+                                                                                                   pkey-bytes data-bytes flags)])                                   
                                        (write-bytes-to-file out-name cms-sig-der)
                                    )))
 (define generate-cms-from-signature-files-ext (lambda(cert-fname ca-cert-fname pkey-fname data-fname out-name sig-cert-fname
@@ -35,7 +37,9 @@
                                         [sig-cert-bytes (read-bytes-from-file sig-cert-fname)]
                                         [sig-pkey-bytes (read-bytes-from-file sig-pkey-fname)]
                                         [sign-impl (make-object libcrypto-cms-sign%)])
-                                       (begin (send sign-impl cms-init-signing cert-bytes pkey-bytes data-bytes flags)
+                                       (begin (send sign-impl cms-init-signing cert-bytes pkey-bytes
+                                                    #f
+                                                    data-bytes flags)
                                               (display (send sign-impl cms-add-cert ca-cert-bytes))                                              
                                               (display (send sign-impl cms-add-signer sig-cert-bytes sig-pkey-bytes "SHA512" sig-flags))                                             
                                               (display (send sign-impl cms-sign-finalize data-bytes 0))                                             
@@ -51,11 +55,11 @@
                                         [data-bytes  (read-bytes-from-file data-fname)]
                                         [sig-cert-bytes (read-bytes-from-file sig-cert-fname)]
                                         [sig-pkey-bytes (read-bytes-from-file sig-pkey-fname)]
-                                        [sign-impl (make-object libcrypto-cms-sign%)])
+                                        [sign-impl (make-object libcrypto-cms-sign%)]
+                                        [cert-stack    (send sign-impl cert-list-to-stack (list cert-bytes ca-cert-bytes))])
                                        (begin 
-                                              (display (send sign-impl cms-encrypt cert-bytes data-bytes "AES-256-CBC" flags))                                              
+                                              (display (send sign-impl cms-encrypt cert-stack data-bytes "AES-256-CBC" flags))                                              
                                               (display (send sign-impl cms-add-receipient-cert sig-cert-bytes 0))
-                                             ;; (display (send sign-impl cms-sign-receipt cert-bytes pkey-bytes flags))
                                               (display (send sign-impl cms-sign-finalize data-bytes 0))                                             
                                               (let ([cms-sig-der (send sign-impl get-cms-content-info/DER)]                                                    )
                                        (begin (write-bytes-to-file out-name cms-sig-der))))

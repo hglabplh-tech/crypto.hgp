@@ -45,31 +45,27 @@
            [data-buffer #f]
            [cert-chain-stack (OPENSSL_sk_new_null)])
     
-      (define/public (cms-sign-sure cert-bytes ca-cert-bytes pkey-bytes data-bytes flags)
-                                      (let* ([cert-len (bytes-length cert-bytes)]
-                                             [ca-cert-len (bytes-length ca-cert-bytes)]
+      (define/public (cms-sign-sure cert-bytes cert-stack pkey-bytes data-bytes flags)
+                                      (let* ([cert-len (bytes-length cert-bytes)]                                             
                                              [pkey-len (bytes-length pkey-bytes)]
                                              [data-len (bytes-length data-bytes)]                                                                                          
                                              [bio_mem_data (BIO_new_mem_buf (buff-pointer-new data-bytes) data-len)]
-                                             [bio_mem_x509 (BIO_new_mem_buf (buff-pointer-new cert-bytes) cert-len)]
-                                             [bio_mem_x509-ca (BIO_new_mem_buf (buff-pointer-new ca-cert-bytes) ca-cert-len)]
-                                             [x509Cert (d2i_X509_bio bio_mem_x509)]
-                                             [x509Cert-ca (d2i_X509_bio bio_mem_x509-ca)]
-                                             [pkey (d2i_PrivateKey EVP_PKEY_RSA pkey-bytes pkey-len)]
-                                             [cert-stack (OPENSSL_sk_new_null)]
-                                             [stackret (OPENSSL_sk_push cert-stack x509Cert-ca)])                                             
+                                             [bio_mem_x509 (BIO_new_mem_buf (buff-pointer-new cert-bytes) cert-len)]                                             
+                                             [x509Cert (d2i_X509_bio bio_mem_x509)]                                             
+                                             [pkey (d2i_PrivateKey EVP_PKEY_RSA pkey-bytes pkey-len)]                                             
+                                             )                                             
                                         
                                       (cond [(not (ptr-equal? x509Cert #f))                                       
                                         (let* (
                                                [content-info (CMS_sign  x509Cert pkey cert-stack bio_mem_data flags)]
                                               )
-                                          (cond [(eq? (CMS_verify content-info cert-stack #f #f CMS_NO_SIGNER_CERT_VERIFY) 1)
+                                          (cond [(eq? (CMS_verify content-info cert-stack #f #f CMS_NO_SIGNER_CERT_VERIFY) 1)                                                 
                                                 (i2d i2d_CMS_ContentInfo content-info)])
                                         
                                         )]
                                         )))
     
-    (define/public (cms-init-signing cert-bytes pkey-bytes data-bytes flags)
+    (define/public (cms-init-signing cert-bytes pkey-bytes cert-stack data-bytes flags)
       (let* ([cert-len (bytes-length cert-bytes)]                                             
              [pkey-len (bytes-length pkey-bytes)]
              [data-len (bytes-length data-bytes)]
@@ -77,7 +73,7 @@
              [bio_mem_x509 (BIO_new_mem_buf (buff-pointer-new cert-bytes) cert-len)]
              [x509Cert (d2i_X509_bio bio_mem_x509)]
              [pkey (d2i_PrivateKey EVP_PKEY_RSA pkey-bytes pkey-len)]
-             [content-info (CMS_sign  x509Cert pkey #f bio_mem_data (bitwise-ior flags CMS_PARTIAL))])
+             [content-info (CMS_sign  x509Cert pkey cert-stack bio_mem_data (bitwise-ior flags CMS_PARTIAL))])
         (begin
               (set-field! content-info-ptr this content-info)
                (set-field! x509-ptr this x509Cert)
@@ -106,18 +102,14 @@
 
     ;;encrypt enveloped data
 
-    (define/public (cms-encrypt cert-bytes data-bytes cipher-name flags)
+    (define/public (cms-encrypt cert-stack data-bytes cipher-name flags)
       (let* ([evp-cipher (EVP_get_cipherbyname cipher-name)]
-            [cert-len (bytes-length cert-bytes)]
+           
             [data-len (bytes-length data-bytes)]                                                                                          
-            [bio_mem_data (BIO_new_mem_buf (buff-pointer-new data-bytes) data-len)]
-            [bio_mem_x509 (BIO_new_mem_buf (buff-pointer-new cert-bytes) cert-len)]
-            [x509Cert (d2i_X509_bio bio_mem_x509)]
-            [stack_len (OPENSSL_sk_push cert-chain-stack x509Cert)]
-            [content-info (CMS_encrypt cert-chain-stack bio_mem_data evp-cipher (bitwise-ior flags CMS_PARTIAL))])
+            [bio_mem_data (BIO_new_mem_buf (buff-pointer-new data-bytes) data-len)]           
+            [content-info (CMS_encrypt cert-stack bio_mem_data evp-cipher (bitwise-ior flags CMS_PARTIAL))])
         
-      (begin (set-field! content-info-ptr this content-info)
-               (set-field! x509-ptr this x509Cert)
+      (begin (set-field! content-info-ptr this content-info)           
                (set-field! data-buffer this data-bytes))))
 
     (define/public (cms-add-receipient-cert cert-bytes flags)
@@ -138,6 +130,9 @@
     
     (define/public (get-cms-content-info )
       (get-field content-info-ptr this))
+
+    (define/public (cert-list-to-stack cert-list)
+      (cert-list-to-stack-internal (OPENSSL_sk_new_null) cert-list))
     
     (define/public (get-cms-content-info/DER)      
             (i2d i2d_CMS_ContentInfo (get-field content-info-ptr this)))
@@ -154,10 +149,20 @@
       (let ([stack (CMS_get0_SignerInfos (get-field content-info-ptr this))])
         (cond [(not (eq? (OPENSSL_sk_num stack) 0))
               (let ([sig-info (sk-typed-value stack 0 _CMS_SignerInfo)])
-                (begin (display (ptr-ref sig-info _pointer))
-                       sig-info)
+               
+                       sig-info
                 )])
         ))
+    
+    (define/public (cert-list-to-stack-internal stack cert-list)
+      (cond [(not (null? cert-list))
+             (let* ([cert-bytes (car cert-list)]
+                    [bio_mem_x509 (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]
+                    [x509Cert (d2i_X509_bio bio_mem_x509)]
+                    [size (OPENSSL_sk_push stack x509Cert)])               
+               (send this cert-list-to-stack-internal stack (cdr cert-list)))]
+             [else stack])
+      )
     ))
 
 
