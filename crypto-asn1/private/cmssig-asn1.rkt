@@ -16,7 +16,8 @@
 #lang racket/base
 (require asn1
          "basesig-asn1.rkt" "certificates-asn1.rkt")
-(provide (all-defined-out))
+(provide (all-defined-out)
+         Name GeneralName GeneralNames)
 ;;=======================================================================================
 ;; CMS signature (former pkcs7) definitions to build the asn1 signature structures for serialize / deserialice
 ;;========================================================================================
@@ -26,7 +27,7 @@
 ;;=======================================================================================
  (define id-cms-contentInfo (build-OID rsadsi  1 9 16 1 6))
 
- (define id-cms-akey-package (build-OID 2 16 840 1 101 2 1 2 78 5))
+ (define id-cms-akey-package (build-OID (list 2 16 840 1 101 2 1 2 78 5)))
 
  (define id-cms-data (build-OID rsadsi (pkcs 1) 7 1))
 
@@ -44,13 +45,42 @@
 
  (define id-cms-auth-compressed-data (build-OID rsadsi (pkcs 1) 9 16 1 9))
 
+;;algorithm and other identifiers..... and primitive definitions
+
+(define MessageDigest OCTET-STRING)
+(define-asn1-type Time (CHOICE
+     (utcTime UTCTime)
+     (generalTime GeneralizedTime)))
+
+ (define SigningTime  Time)
+
+ 
+
+(define-asn1-type Countersignature SignerInfo)
+
+(define ContentEncryptionAlgorithmIdentifier (AlgorithmIdentifier SIGNING))
+
+(define KeyEncryptionAlgorithmIdentifier  (AlgorithmIdentifier SIGNING))
+
+(define KeyDerivationAlgorithmIdentifier (AlgorithmIdentifier SIGNING))
+
+(define MessageAuthenticationCodeAlgorithm (AlgorithmIdentifier SIGNING))
+
+
+
+
+;;
 ;;=====================================================================================
 ;; the ASN1 structures for CMS signatures
 ;;=====================================================================================
 
+
+
  (define-asn1-type ContentInfo (SEQUENCE 
-        (contentType ContentType)
-        (content #:explicit 0 #:dependent (ANY contentType) )))
+        (contentType ContentType)        
+        (content #:explicit 0 #:dependent(cadr (assoc  contentType (list (list id-cms-enveloped-data EnvelopedData)
+                                                                          (list id-cms-signed-data SignedData) 
+                                                (list id-cms-data ANY)))))))
 
  (define ContentType OBJECT-IDENTIFIER)
 
@@ -58,14 +88,15 @@
  (define-asn1-type SignerIdentifier  (CHOICE
         (issuerAndSerialNumber IssuerAndSerialNumber)
          (subjectKeyIdentifier SubjectKeyIdentifier) ))
-
- (define-asn1-type SignedData (SEQUENCE 
+(define-asn1-type SignerInfo (SEQUENCE
         (version CMSVersion)
-        (digestAlgorithms DigestAlgorithmIdentifiers)
-        (encapContentInfo EncapsulatedContentInfo)
-        (certificates #:implicit 0 CertificateSet #:optional)
-        (crls #:implicit 1 RevocationInfoChoices #:optional)
-        (signerInfos SignerInfos)))
+        (sid SignerIdentifier)
+        (digestAlgorithm (AlgorithmIdentifier SIGNING))
+        (signedAttrs #:implicit 1 SignedAttributes #:optional)
+        (signatureAlgorithm (AlgorithmIdentifier SIGNING))
+        (signature SignatureValue)
+        (unsignedAttrs #:implicit 2 UnsignedAttributes #:optional)))
+
 
   (define-asn1-type RevocationInfoChoices (SET-OF RevocationInfoChoice))
 
@@ -92,22 +123,39 @@
 
   (define-asn1-type CertificateSet (SET-OF CertificateChoices))
 
-  (define DigestAlgorithmIdentifiers (SET-OF DigestAlgorithmIdentifier))
+  (define-asn1-type  DigestAlgorithmIdentifiers (SET-OF (AlgorithmIdentifier SIGNING)))
 
   (define SignerInfos (SET-OF SignerInfo))
 
-  (define EncapsulatedContentInfo (SEQUENCE           
+(define-asn1-type AuthAttributes (SET-OF Attribute))
+
+ (define-asn1-type UnauthAttributes (SET-OF Attribute))
+
+ (define-asn1-type MessageAuthenticationCode OCTET-STRING)
+(define-asn1-type EncryptedContent OCTET-STRING)
+
+(define-asn1-type UnprotectedAttributes (SET-OF Attribute))
+
+
+
+
+
+(define-asn1-type EncryptedKey OCTET-STRING)
+
+  (define-asn1-type EncapsulatedContentInfo (SEQUENCE           
         (eContentType ContentType)
         (eContent #:explicit 0  OCTET-STRING #:optional)))
+
+ (define-asn1-type CmsAttribute (SEQUENCE 
+        (attrType OBJECT-IDENTIFIER)
+        (attrValues (SET-OF AttributeValue))))
 
 
   (define SignedAttributes (SET-OF CmsAttribute))
 
   (define UnsignedAttributes (SET-OF CmsAttribute))  
 
-  (define CmsAttribute (SEQUENCE 
-        (attrType OBJECT-IDENTIFIER)
-        (attrValues (SET-OF AttributeValue))))
+ 
 
   
 
@@ -132,49 +180,32 @@
 
 
 
-(define-asn1-type SignerInfo (SEQUENCE
-        (version CMSVersion)
-        (sid SignerIdentifier)
-        (digestAlgorithm DigestAlgorithmIdentifier)
-        (signedAttrs #:implicit 1 SignedAttributes #:optional)
-        (signatureAlgorithm SignatureAlgorithmIdentifier)
-        (signature SignatureValue)
-        (unsignedAttrs #:implicit 2 UnsignedAttributes #:optional)))
+
  
-(define-asn1-type EnvelopedData (SEQUENCE
-     (version CMSVersion)
-     (originatorInfo #:implicit 0 OriginatorInfo #:optional)
-     (recipientInfos RecipientInfos)
-     (encryptedContentInfo EncryptedContentInfo)
-     (unprotectedAttrs #:implicit 1 UnprotectedAttributes #:optional)))
+
 
 (define-asn1-type OriginatorInfo (SEQUENCE 
      (certs #:implicit 0 CertificateSet #:optional)
      (crls  #:implicit 1 RevocationInfoChoices #:optional)))
 
-(define-asn1-type EncryptedContentInfo (SEQUENCE 
+(define EncryptedContentInfo (SEQUENCE 
      (contentType ContentType)
-     (contentEncryptionAlgorithm ContentEncryptionAlgorithmIdentifier)
+     (contentEncryptionAlgorithm (AlgorithmIdentifier SIGNING))
      (encryptedContent #:implicit 0 EncryptedContent #:optional)))
 
   
 
-(define-asn1-type EncryptedContent OCTET-STRING)
 
-(define-asn1-type UnprotectedAttributes (SET-OF Attribute))
 
-(define-asn1-type RecipientInfo (CHOICE
-     (ktri KeyTransRecipientInfo)
-     (kari #:explicit 1 KeyAgreeRecipientInfo)
-     (kekri #:explicit 2 KEKRecipientInfo)
-     (pwri #:explicit 3 PasswordRecipientInfo)
-     (ori #:explicit 4 OtherRecipientInfo)))
+
+
+
 
 
 (define-asn1-type KeyTransRecipientInfo (SEQUENCE 
         (version CMSVersion)  ;;-- always set to 0 or 2
         (rid RecipientIdentifier)
-        (keyEncryptionAlgorithm KeyEncryptionAlgorithmIdentifier)
+        (keyEncryptionAlgorithm (AlgorithmIdentifier SIGNING))
         (encryptedKey EncryptedKey)))
 
 (define-asn1-type RecipientIdentifier (CHOICE 
@@ -185,7 +216,7 @@
         (version CMSVersion)  ;;-- always set to 3
         (originator #:explicit 0 OriginatorIdentifierOrKey)
         (ukm #:explicit 1 UserKeyingMaterial #:optional)
-        (keyEncryptionAlgorithm KeyEncryptionAlgorithmIdentifier)
+        (keyEncryptionAlgorithm (AlgorithmIdentifier SIGNING))
         (recipientEncryptedKeys RecipientEncryptedKeys)))
 
 (define-asn1-type UserKeyingMaterial OCTET-STRING)
@@ -215,13 +246,13 @@
         (originatorKey #:explicit 1 OriginatorPublicKey)))
 
   (define-asn1-type OriginatorPublicKey (SEQUENCE
-        (algorithm AlgorithmIdentifier)
+        (algorithm (AlgorithmIdentifier SIGNING))
         (publicKey BIT-STRING)))
 
 (define-asn1-type KEKRecipientInfo (SEQUENCE 
         (version CMSVersion)  ;;-- always set to 4
         (kekid KEKIdentifier)
-        (keyEncryptionAlgorithm KeyEncryptionAlgorithmIdentifier)
+        (keyEncryptionAlgorithm (AlgorithmIdentifier SIGNING))
         (encryptedKey EncryptedKey)))
 
  (define-asn1-type KEKIdentifier (SEQUENCE 
@@ -235,57 +266,48 @@
 
 (define-asn1-type PasswordRecipientInfo (SEQUENCE 
         (version CMSVersion)   ;;-- Always set to 0
-        (keyDerivationAlgorithm #:explicit 0 KeyDerivationAlgorithmIdentifier
+        (keyDerivationAlgorithm #:explicit 0 (AlgorithmIdentifier SIGNING)
                                      #:optional)
-        (keyEncryptionAlgorithm KeyEncryptionAlgorithmIdentifier)
+        (keyEncryptionAlgorithm (AlgorithmIdentifier SIGNING))
         (encryptedKey EncryptedKey)))
 
 (define-asn1-type OtherRecipientInfo (SEQUENCE
         (oriType OBJECT-IDENTIFIER)
         (oriValue #:dependent (ANY oriType)))) ;;DEFINED BY oriType
 
+(define-asn1-type RecipientInfo (CHOICE
+     (ktri KeyTransRecipientInfo)
+     (kari #:explicit 1 KeyAgreeRecipientInfo)
+     (kekri #:explicit 2 KEKRecipientInfo)
+     (pwri #:explicit 3 PasswordRecipientInfo)
+     (ori #:explicit 4 OtherRecipientInfo)))
+(define-asn1-type RecipientInfos (SET-OF RecipientInfo))
+
  (define-asn1-type AuthenticatedData  (SEQUENCE 
         (version CMSVersion)
         (originatorInfo #:implicit 0 OriginatorInfo #:optional)
         (recipientInfos RecipientInfos)
         (macAlgorithm MessageAuthenticationCodeAlgorithm)
-        (digestAlgorithm #:explicit 1 DigestAlgorithmIdentifier #:optional)
+        (digestAlgorithm #:explicit 1 (AlgorithmIdentifier SIGNING) #:optional)
         (encapContentInfo EncapsulatedContentInfo)
         (authAttrs #:implicit 2 AuthAttributes #:optional)
         (mac MessageAuthenticationCode)
         (unauthAttrs #:implicit 3 UnauthAttributes #:optional)))
 
- (define-asn1-type AuthAttributes (SET-OF Attribute))
+(define EnvelopedData (SEQUENCE
+     (version CMSVersion)
+     (originatorInfo #:implicit 0 OriginatorInfo #:optional)
+     (recipientInfos RecipientInfos)
+     (encryptedContentInfo EncryptedContentInfo)
+     (unprotectedAttrs #:implicit 1 UnprotectedAttributes #:optional)))
 
- (define-asn1-type UnauthAttributes (SET-OF Attribute))
+ (define SignedData (SEQUENCE 
+        (version CMSVersion)
+        (digestAlgorithms (AlgorithmIdentifier SIGNING))
+        (encapContentInfo EncapsulatedContentInfo)
+        (certificates #:implicit 0 CertificateSet #:optional)
+        (crls #:implicit 1 RevocationInfoChoices #:optional)
+        (signerInfos SignerInfos)))
 
- (define-asn1-type MessageAuthenticationCode OCTET-STRING)
-
-
-
-(define-asn1-type RecipientInfos (SET-OF RecipientInfo))
-
-(define-asn1-type EncryptedKey OCTET-STRING)
-
-;;algorithm and other identifiers..... and primitive definitions
-
-(define MessageDigest OCTET-STRING)
-
- (define SigningTime  Time)
-
- (define-asn1-type Time (CHOICE
-     (utcTime UTCTime)
-     (generalTime GeneralizedTime)))
-
-(define-asn1-type Countersignature SignerInfo)
-
-(define ContentEncryptionAlgorithmIdentifier AlgorithmIdentifier)
-
-(define KeyEncryptionAlgorithmIdentifier  AlgorithmIdentifier)
-
-(define KeyDerivationAlgorithmIdentifier AlgorithmIdentifier)
-
-(define MessageAuthenticationCodeAlgorithm AlgorithmIdentifier)
-
-
+ 
 
