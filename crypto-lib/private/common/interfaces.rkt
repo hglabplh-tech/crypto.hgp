@@ -295,12 +295,14 @@
 
 (define cms-sign<%>
   (interface (impl<%>)
-    [cms-sign-sure            (->m bytes? bytes? any/c bytes? bytes? integer?)]
-    [cms-init-signing         (->m any/c  bytes? bytes? any/c bytes? integer?)]
+    [cms-sign-sure            (->m bytes? bytes? bytes? list? bytes? integer?)]
+    [cms-init-signing         (->m any/c  bytes? bytes? list? bytes? integer?)]
     [cms-add-cert             (->m integer? bytes?)]
     [cms-signerinfo-sign      (->m integer?)]
     [cms-add-signer           (->m any/c bytes? bytes? string? integer?)]
     [cms-sign-finalize        (->m integer? bytes? integer?)]
     [get-cms-content-info/DER (->m bytes?)]
     [cms-sign-receipt         (->m any/c bytes? bytes? integer?)]
+    [cms-add-receipient-cert  (->m any/c bytes? integer?)]
+    [cms-encrypt              (->m any/c list? bytes? string? integer?)]
     ))

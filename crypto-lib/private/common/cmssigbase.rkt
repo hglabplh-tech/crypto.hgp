@@ -32,8 +32,8 @@
   (class* impl-base% (cms-sign<%>)
     (inherit about get-spec get-factory)
     (super-new)
-    (define/public (cms-sign-sure cert-bytes cert-stack pkey-bytes data-bytes flags) #f)
-    (define/public (cms-init-signing cert-bytes pkey-bytes cert-stack data-bytes flags) #f)
+    (define/public (cms-sign-sure cert-bytes pkey-bytes cert-stack-list data-bytes flags) #f)
+    (define/public (cms-init-signing cert-bytes pkey-bytes cert-stack-list data-bytes flags) #f)
     (define/public (cms-add-cert cert-bytes) #f)
     (define/public (cms-signerinfo-sign) #f)
     (define/public (cms-add-signer cert-bytes pkey-bytes digest-name flags) #f)
@@ -41,5 +41,7 @@
     (define/public (get-cms-content-info ) #f)
     (define/public (get-cms-content-info/DER) #f)
     (define/public (cms-sign-receipt cert-bytes pkey-bytes flags) #f)
+    (define/public (cms-encrypt cert-stack-list data-bytes cipher-name flags) #f)
+    (define/public (cms-add-receipient-cert cert-bytes flags) #f)
     ))
 
