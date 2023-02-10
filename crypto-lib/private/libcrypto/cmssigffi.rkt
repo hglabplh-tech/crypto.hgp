@@ -20,6 +20,7 @@
          ffi/unsafe/alloc
          ffi/unsafe/atomic
          openssl/libcrypto
+         
          "../common/error.rkt"
          "ffi.rkt")
 (provide (protect-out (all-defined-out))
@@ -88,6 +89,10 @@
 (define-crypto BIO_new_mem_buf (_fun
                  _pointer _int -> _BIO/null)
                  #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
+
+ (define-crypto BIO_new_file(_fun _pointer _pointer -> _BIO/null)
+   #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
+
 
 
 (define-cpointer-type _X509)
@@ -223,3 +228,24 @@
   #:wrap (err-wrap/pointer 'CMS_add1_recipient_cert))
 
 ;;CMS_RecipientInfo *CMS_add0_recipient_key(CMS_ContentInfo *cms, int nid, unsigned char *key, size_t keylen, unsigned char *id, size_t idlen, ASN1_GENERALIZEDTIME *date, ASN1_OBJECT *otherTypeId, ASN1_TYPE *otherType);
+
+;;CMS_ContentInfo *d2i_CMS_ContentInfo(CMS_ContentInfo **a, unsigned char **pp, long length);
+
+(define-crypto d2i_CMS_ContentInfo (_fun
+                          (_pointer = #f) _dptr_to_bytes _long -> _CMS_ContentInfo/null)
+  #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_CMS_ContentInfo)))
+
+;;int CMS_decrypt(CMS_ContentInfo *cms, EVP_PKEY *pkey, X509 *cert, BIO *dcont, BIO *out, unsigned int flags);
+
+(define-crypto CMS_decrypt (_fun _CMS_ContentInfo _EVP_PKEY _X509 (_pointer = #f) _BIO _uint -> _int)
+  #:wrap (err-wrap 'CMS_decrypt))
+
+;; CMS_ContentInfo *SMIME_read_CMS(BIO *in, BIO **bcont);
+
+(define-crypto SMIME_read_CMS (_fun _BIO (_BIO = #f) -> _CMS_ContentInfo)
+  #:wrap (err-wrap/pointer 'SMIME_read_CMS))
+
+;;int SMIME_write_CMS(BIO *out, CMS_ContentInfo *cms, BIO *data, int flags);
+
+(define-crypto SMIME_write_CMS (_fun _BIO _CMS_ContentInfo _BIO _int -> _int)
+  #:wrap (err-wrap/pointer 'SMIME_write_CMS))
