@@ -1,3 +1,4 @@
+;; Copyright 2023-2024 Harald Glab-Plhak
 ;; Copyright 2012-2018 Ryan Culpepper
 ;; Copyright 2007-2009 Dimitris Vyzovitis <vyzo at media.mit.edu>
 ;; 
@@ -27,6 +28,13 @@
          libcrypto
          d2i_PrivateKey
          EVP_PKEY_RSA
+         EVP_PKEY_DSA
+         EVP_PKEY_DH
+         EVP_PKEY_EC
+         NID_X25519
+         NID_X448
+         NID_ED25519
+         NID_ED448
          i2d
          EVP_get_digestbyname
          EVP_get_cipherbyname)
@@ -84,14 +92,20 @@
 ;;BIO create mem BIO for CMS signing
 ;;BIO *BIO_new_mem_buf(const void *buf, int len);
 (define-cpointer-type _BIO)
+(define-cpointer-type _BIO_METHOD)
 
+(define-crypto BIO_s_mem (_fun -> _BIO_METHOD/null)
+  #:wrap (err-wrap/pointer 'BIO_s_mem))
+
+(define-crypto BIO_new (_fun _BIO_METHOD -> _BIO/null)
+  #:wrap (err-wrap/pointer 'BIO_s_mem))
 
 (define-crypto BIO_new_mem_buf (_fun
                  _pointer _int -> _BIO/null)
                  #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
 
- (define-crypto BIO_new_file(_fun _pointer _pointer -> _BIO/null)
-   #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
+ (define-crypto BIO_new_file(_fun _string _string -> _BIO/null)
+   #:wrap (err-wrap/pointer 'BIO_new_file))
 
 
 
