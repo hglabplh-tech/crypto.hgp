@@ -168,8 +168,17 @@
     (define/public (cms-sig-verify contentinfo-buffer cert-stack-list flags)
       (let ([content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]
             [cert-stack (cert-list-to-stack cert-stack-list)])
-        
-        (CMS_verify content-info cert-stack #f #f CMS_NO_SIGNER_CERT_VERIFY)      ))
+            
+        (begin
+          (set-field! content-info-ptr this content-info)
+        (cond [(equal? (CMS_verify content-info cert-stack #f #f (bitwise-ior CMS_NO_SIGNER_CERT_VERIFY flags))  1    ) ;;CMS_NO_SIGNER_CERT_VERIFY
+               'success]
+              [else 'fail]))))
+    
+    (define/public (cms-siginfo-get-first-signature)
+      (let* ([signer-info-stack (CMS_get0_SignerInfos (get-field content-info-ptr this))]
+             [first-sig-info (sk-typed-value signer-info-stack 0 _CMS_SignerInfo)])
+        (get-octet-members-as-list (CMS_SignerInfo_get0_signature first-sig-info))))
 ))
 ;; helper exports
 

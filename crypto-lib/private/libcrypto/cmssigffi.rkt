@@ -21,7 +21,7 @@
          ffi/unsafe/alloc
          ffi/unsafe/atomic
          openssl/libcrypto
-         
+         "ffitypes.rkt"
          "../common/error.rkt"
          "ffi.rkt")
 (provide (protect-out (all-defined-out))
@@ -261,5 +261,16 @@
 
 ;;int SMIME_write_CMS(BIO *out, CMS_ContentInfo *cms, BIO *data, int flags);
 
-(define-crypto SMIME_write_CMS (_fun _BIO _CMS_ContentInfo _BIO _int -> _int)
-  #:wrap (err-wrap/pointer 'SMIME_write_CMS))
+;;ASN1_OCTET_STRING *CMS_SignerInfo_get0_signature(CMS_SignerInfo *si);
+
+(define-crypto CMS_SignerInfo_get0_signature (_fun _CMS_SignerInfo -> (octet : _pointer)
+                                                   -> (ptr-ref octet _asn1_string_st))
+  #:wrap (err-wrap/pointer 'SMIME_read_CMS))
+
+ (define get-octet-members-as-list (lambda (instance)
+                               (let ([octet-length (asn1_string_st-length instance)]
+                                     [octet-type (asn1_string_st-type instance)]
+                                     [octet-val (asn1_string_st-data instance)]
+                                     [octet-flags (asn1_string_st-flags instance)])
+                                 (list (list 'octet-length octet-length) (list 'octet-type octet-type)
+                                       (list 'octet-val octet-val) (list 'octet-flags octet-flags)))))

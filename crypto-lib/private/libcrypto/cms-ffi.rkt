@@ -74,7 +74,8 @@
                                         [content-info-bytes (read-bytes-from-file signature-name)]
                                         [check-impl (make-object libcrypto-cms-check-explore%)]
                                         [cert-stack-list (list cert-bytes ca-cert-bytes)])
-                                   (send check-impl cms-sig-verify content-info-bytes (list cert-bytes  ca-cert-bytes sig-cert-bytes) flags)
+                                   (begin (display (send check-impl cms-sig-verify content-info-bytes (list cert-bytes  ca-cert-bytes sig-cert-bytes) flags))
+                                   (send check-impl cms-siginfo-get-first-signature))
                                    )))
 
 (define outage (generate-cms-from-signature-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
@@ -92,13 +93,14 @@
                                                                                                     "data/cms-envelop-ext-SMIME.pkcs7")
                                              "data/freeware-user-cert_1.der"
                                              "data/freeware-user-key_1.der" 0 0))
+
 (verify-cms-from-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
                                                           "data/freeware-user-cert_1.der"
                                              "data/cms-sig-ext.pkcs7" 0)
                                              
 (printf "Key id of '~a is ~a ~n" 'rsa-key (get-pkey-format-id 'rsa-key))
 (printf "Key id of '~a is ~a ~n" 'ec-key (get-pkey-format-id 'ec-key))
-(display (EVP_get_cipherbyname "AES-256-CBC"))
+
 
 ;;(define outage-det (generate-cms-signature-files "data/domain.der" "data/privkey.der" "pkey.rkt" "data/cms-sig-det.pkcs7" CMS_DETACHED))
 ;;(display outage-det)
