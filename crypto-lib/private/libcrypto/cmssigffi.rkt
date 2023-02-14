@@ -79,6 +79,11 @@
 ( define CMS_CADES                       #x100000)
 ( define CMS_USE_ORIGINATOR_KEYID        #x200000)
 
+(define BIO_NOCLOSE             #x00)
+(define BIO_CLOSE               #x01)
+(define BIO_CTRL_EOF            2)
+(define BIO_C_SET_BUF_MEM       114)
+
 
 
 ;;========================================
@@ -93,6 +98,7 @@
 ;;BIO *BIO_new_mem_buf(const void *buf, int len);
 (define-cpointer-type _BIO)
 (define-cpointer-type _BIO_METHOD)
+(define-cpointer-type _BUF_MEM)
 
 (define-crypto BIO_s_mem (_fun -> _BIO_METHOD/null)
   #:wrap (err-wrap/pointer 'BIO_s_mem))
@@ -104,11 +110,34 @@
                  _pointer _int -> _BIO/null)
                  #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
 
- (define-crypto BIO_new_file(_fun _string _string -> _BIO/null)
-   #:wrap (err-wrap/pointer 'BIO_new_file))
+(define-crypto BUF_MEM_new(_fun -> _BUF_MEM)
+  #:wrap (err-wrap/pointer 'BIO_s_mem))
+
+(define-crypto BIO_get_data(_fun _BIO -> _pointer)                                                   
+  #:wrap (err-wrap/pointer 'BIO_get_data))
+
+(define-crypto BIO_ctrl(_fun _BIO _int _long _pointer -> _long)
+  #:wrap (err-wrap 'BIO_ctrl))
+
+(define-crypto BIO_read(_fun _BIO _pointer _int  -> _int)
+  #:wrap (err-wrap 'BIO_read))
+
+
+(define (build-set-membuf-no-close mem-bio)
+  (let ([buf-mem (BUF_MEM_new)])
+  (BIO_ctrl mem-bio BIO_C_SET_BUF_MEM BIO_NOCLOSE buf-mem)
+    mem-bio))
+
+(define (build-writeable-mem-bio)
+  (let ([mem-bio (BIO_new(BIO_s_mem))])
+    (build-set-membuf-no-close mem-bio)))
+
+(define (BIO_eof bio)
+  (BIO_ctrl bio BIO_CTRL_EOF #x00 #f))
 
 
 
+;; X509 Pointer
 (define-cpointer-type _X509)
 
 
@@ -267,7 +296,7 @@
                                                    -> (ptr-ref octet _asn1_string_st))
   #:wrap (err-wrap/pointer 'SMIME_read_CMS))
 
- (define get-octet-members-as-list (lambda (instance)
+ (define asn1-octet-members-as-list (lambda (instance)
                                (let ([octet-length (asn1_string_st-length instance)]
                                      [octet-type (asn1_string_st-type instance)]
                                      [octet-val (asn1_string_st-data instance)]

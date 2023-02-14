@@ -36,7 +36,11 @@
     
     [flags _long]))
 
-(define (get-member name struct)
-  (assoc name struct))
+(define-cstruct _biodata (
+  [data _bytes]
+  [len _size]
+  [read_position _size]))
+
+
   
          

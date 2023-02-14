@@ -174,11 +174,24 @@
         (cond [(equal? (CMS_verify content-info cert-stack #f #f (bitwise-ior CMS_NO_SIGNER_CERT_VERIFY flags))  1    ) ;;CMS_NO_SIGNER_CERT_VERIFY
                'success]
               [else 'fail]))))
+
+    (define/public (cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
+      (let* ([content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]            
+            [bio-mem-cert (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]                                             
+            [cert-to-select (d2i_X509_bio bio-mem-cert)]
+            [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
+            [bio-out (build-writeable-mem-bio)]
+            [result (CMS_decrypt content-info pkey cert-to-select bio-out flags)])
+            
+            (write-bytes-from-membio fname bio-out)))
+            
+               
+  
     
-    (define/public (cms-siginfo-get-first-signature)
+    (define/public (cms-signinfo-get-first-signature)
       (let* ([signer-info-stack (CMS_get0_SignerInfos (get-field content-info-ptr this))]
              [first-sig-info (sk-typed-value signer-info-stack 0 _CMS_SignerInfo)])
-        (get-octet-members-as-list (CMS_SignerInfo_get0_signature first-sig-info))))
+        (asn1-octet-members-as-list (CMS_SignerInfo_get0_signature first-sig-info))))
 ))
 ;; helper exports
 
@@ -201,6 +214,29 @@
        (write-bytes buffer port 0 length)
        (close-output-port port))
        )))
+
+
+
+;; write a binary file from mem bio
+(define write-bytes-from-membio
+   (lambda (fname mem-bio)
+     (let*([port (open-file-output-port fname (file-options no-fail))]
+           [buffer (make-bytes 1024 65)]
+           [length (bytes-length buffer)])
+       (begin
+         (displayln (list'bufflen length))
+       (write-bytes-from-membio-internal mem-bio port buffer length length)
+       (close-output-port port))
+       )))
+
+(define (write-bytes-from-membio-internal mem-bio port buffer length read-len)
+      (cond [(equal? read-len length)
+             (let ([bytes-read (BIO_read mem-bio buffer length)])
+               (begin (write-bytes buffer port 0 bytes-read)
+               (write-bytes-from-membio-internal mem-bio port buffer length bytes-read))
+               )]
+             [else 1])
+      )
 
 ;; get the internal private-key-format identifier
 (define get-pkey-format-id

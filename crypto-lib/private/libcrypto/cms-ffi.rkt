@@ -67,6 +67,17 @@
                                               )))
                                    )))
 
+(define cms-decrypt (lambda(cert-fname pkey-fname pkey-fmt contentinfo-file fname flags )
+                                 (let* ([cert-bytes (read-bytes-from-file cert-fname)]
+                                        [contentinfo-buffer (read-bytes-from-file contentinfo-file)]
+                                        [pkey-bytes (read-bytes-from-file pkey-fname)]                        
+                                        [check-impl (make-object libcrypto-cms-check-explore%)]
+                                        )                                       
+
+                                   (send check-impl cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags))))
+                    
+
+
 (define verify-cms-from-files (lambda(cert-fname ca-cert-fname sig-cert-fname signature-name flags)
                                  (let* ([cert-bytes (read-bytes-from-file cert-fname)]
                                         [ca-cert-bytes (read-bytes-from-file ca-cert-fname)]
@@ -75,7 +86,7 @@
                                         [check-impl (make-object libcrypto-cms-check-explore%)]
                                         [cert-stack-list (list cert-bytes ca-cert-bytes)])
                                    (begin (display (send check-impl cms-sig-verify content-info-bytes (list cert-bytes  ca-cert-bytes sig-cert-bytes) flags))
-                                   (send check-impl cms-siginfo-get-first-signature))
+                                   (send check-impl cms-signinfo-get-first-signature))
                                    )))
 
 (define outage (generate-cms-from-signature-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
@@ -89,10 +100,11 @@
                                              "data/freeware-user-key_1.der" 0 0))
 
 (define outage-envelop (generate-cms-envelop-from-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
-                                             "data/freeware-user-key.der" 'rsa-key "pkey.rkt" (list "data/cms-envelop-ext.pkcs7"
+                                             "data/freeware-user-key.der" 'rsa-key "ffi.rkt" (list "data/cms-envelop-ext.pkcs7"
                                                                                                     "data/cms-envelop-ext-SMIME.pkcs7")
                                              "data/freeware-user-cert_1.der"
                                              "data/freeware-user-key_1.der" 0 0))
+
 
 (verify-cms-from-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
                                                           "data/freeware-user-cert_1.der"
@@ -100,6 +112,9 @@
                                              
 (printf "Key id of '~a is ~a ~n" 'rsa-key (get-pkey-format-id 'rsa-key))
 (printf "Key id of '~a is ~a ~n" 'ec-key (get-pkey-format-id 'ec-key))
+
+(cms-decrypt "data/freeware-user-cert.der" "data/freeware-user-key.der" 'rsa-key  "data/cms-envelop-ext.pkcs7" "data/out.bin" 0)
+
 
 
 ;;(define outage-det (generate-cms-signature-files "data/domain.der" "data/privkey.der" "pkey.rkt" "data/cms-sig-det.pkcs7" CMS_DETACHED))
