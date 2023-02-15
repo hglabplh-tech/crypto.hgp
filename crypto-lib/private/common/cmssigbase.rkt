@@ -40,8 +40,8 @@
     (define/public (cms-sign-finalize data-bytes flags) #f)
     (define/public (get-cms-content-info ) #f)
     (define/public (get-cms-content-info/DER) #f)
-    (define/public (cms-sign-receipt cert-bytes pkey-bytes flags) #f)
+    (define/public (cms-sign-receipt cert-bytes cert-stack-list pkey-bytes pkey-fmt flags) #f)
     (define/public (cms-encrypt cert-stack-list data-bytes cipher-name flags) #f)
-    (define/public (cms-add-receipient-cert cert-bytes flags) #f)
+    (define/public (cms-add-recipient-cert cert-bytes flags) #f)
     ))
 
