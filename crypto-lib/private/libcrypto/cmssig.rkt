@@ -29,7 +29,8 @@
          "../common/asn1.rkt"
          "../common/error.rkt"
          "cmssigffi.rkt")
-(provide (all-defined-out))
+(provide (all-defined-out)
+         get-asn1-data)
 
 (define libcrypto-cms-sign%
   (class object%
@@ -148,6 +149,8 @@
     (define/public (get-cms-content-info )
       (get-field content-info-ptr this))
 
+    (define/public (get-cms-content-info-type)
+        (get-asn1-data (CMS_get0_type (get-field content-info-ptr this))))
     
     (define/public (get-cms-content-info/DER)      
             (i2d i2d_CMS_ContentInfo (get-field content-info-ptr this)))

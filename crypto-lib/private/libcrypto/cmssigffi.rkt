@@ -21,6 +21,7 @@
          ffi/unsafe/alloc
          ffi/unsafe/atomic
          openssl/libcrypto
+         openssl/sha1
          "ffitypes.rkt"
          "../common/error.rkt"
          "ffi.rkt")
@@ -172,7 +173,7 @@
 
 ;;define a *char pointer
 (define buff-pointer-new (lambda(buffer)
-                                    (let ([p (malloc _bytes (bytes-length buffer) 'atomic)])
+                                    (let ([p (malloc _byte (bytes-length buffer) 'atomic)])
                                       (memcpy p buffer (bytes-length buffer) _byte) p)))
 ;; try to define stack
 (define-cpointer-type _STACK)
@@ -320,3 +321,29 @@
                                      [octet-flags (asn1_string_st-flags instance)])
                                  (list (list 'octet-length octet-length) (list 'octet-type octet-type)
                                        (list 'octet-val octet-val) (list 'octet-flags octet-flags)))))
+
+;; Get data from contentinfo / meta data and content
+
+;;const ASN1_OBJECT *CMS_get0_type(CMS_ContentInfo *cms);
+
+(define-cpointer-type _ASN1_OBJECT)
+
+(define-crypto CMS_get0_type (_fun _CMS_ContentInfo -> _ASN1_OBJECT)
+  #:wrap (err-wrap/pointer 'CMS_get0_type))
+
+;;size_t OBJ_length(const ASN1_OBJECT *obj);
+;; const unsigned char *OBJ_get0_data(const ASN1_OBJECT *obj);
+
+(define-crypto OBJ_length (_fun _ASN1_OBJECT -> _size)
+  #:wrap (err-wrap 'OBJ_length))
+
+(define-crypto OBJ_get0_data (_fun _ASN1_OBJECT -> _bytes)
+  #:wrap (err-wrap/pointer 'OBJ_get0_data))
+
+(define (get-asn1-data object)
+  (let* ([length (OBJ_length object)]
+        [bytes (OBJ_get0_data object)]
+        [buffer (make-bytes length)])
+    (memcpy buffer bytes (bytes-length buffer) _byte) (bytes->hex-string buffer)))
+    
+               
