@@ -103,15 +103,24 @@
 (define-crypto BIO_s_mem (_fun -> _BIO_METHOD/null)
   #:wrap (err-wrap/pointer 'BIO_s_mem))
 
+(define-crypto BIO_vfree(_fun _BIO -> _void)
+  #:wrap (deallocator))
+
+(define-crypto BUF_MEM_free(_fun _BUF_MEM -> _void)
+  #:wrap (deallocator))
+
 (define-crypto BIO_new (_fun _BIO_METHOD -> _BIO/null)
-  #:wrap (err-wrap/pointer 'BIO_s_mem))
+  #:wrap (compose (allocator BIO_vfree)
+                  (err-wrap/pointer 'BIO_s_mem)))
 
 (define-crypto BIO_new_mem_buf (_fun
                  _pointer _int -> _BIO/null)
-                 #:wrap (err-wrap/pointer 'BIO_new_mem_buf))
+                 #:wrap (compose (allocator BIO_vfree)
+                                 (err-wrap/pointer 'BIO_new_mem_buf)))
 
 (define-crypto BUF_MEM_new(_fun -> _BUF_MEM)
-  #:wrap (err-wrap/pointer 'BIO_s_mem))
+  #:wrap (compose (allocator BUF_MEM_free)
+                  (err-wrap/pointer 'BIO_MEM_new)))
 
 (define-crypto BIO_get_data(_fun _BIO -> _pointer)                                                   
   #:wrap (err-wrap/pointer 'BIO_get_data))
@@ -143,7 +152,7 @@
 
 (define-crypto X509_free
   (_fun _X509 -> _void)
-  #:wrap (deallocator))
+  #:wrap deallocator)
 
 (define-crypto X509_new
   (_fun -> _X509/null)
@@ -168,8 +177,14 @@
 ;; try to define stack
 (define-cpointer-type _STACK)
 
+(define-crypto OPENSSL_sk_free(_fun _STACK -> _void)
+   #:wrap (deallocator))
+
 (define-crypto OPENSSL_sk_new_null (_fun -> _STACK)
-  #:wrap (err-wrap/pointer 'OPENSSL_sk_new_null))
+  #:wrap (compose (allocator OPENSSL_sk_free)
+                  (err-wrap/pointer 'OPENSSL_sk_new_null)))
+
+  
  
 (define-crypto OPENSSL_sk_push(_fun _STACK  _pointer -> _int)
    #:wrap (err-wrap 'OPENSSL_sk_push))
@@ -183,8 +198,6 @@
 (define-crypto OPENSSL_sk_value(_fun _STACK  _int -> _pointer)
    #:wrap (err-wrap/pointer 'OPENSSL_sk_value))
 
-(define-crypto OPENSSL_sk_free(_fun _STACK -> _void)
-   #:wrap (deallocator))
 
 (define sk-typed-pop (lambda (stack type)
                     (let ([value (OPENSSL_sk_pop stack)])
@@ -204,6 +217,8 @@
 (define-cpointer-type _CMS_SignerInfo)
 (define-cpointer-type _CMS_RecipientInfo)
 
+(define-crypto CMS_ContentInfo_free(_fun _CMS_ContentInfo  -> _void)
+  #:wrap (deallocator))
 
 (define-crypto i2d_CMS_ContentInfo (_fun
                                     _CMS_ContentInfo (_ptr i _pointer) -> _int)
@@ -211,8 +226,8 @@
 ;;int i2d_CMS_ContentInfo(CMS_ContentInfo *a, unsigned char **pp);
 
 (define-crypto CMS_sign (_fun
-                _X509 _EVP_PKEY _STACK/null _BIO _uint -> _CMS_ContentInfo)
-                #:wrap (err-wrap/pointer 'CMS_sign))
+                _X509 _EVP_PKEY _STACK/null _BIO _uint -> _CMS_ContentInfo/null)
+                #:wrap (compose (allocator CMS_ContentInfo_free) (err-wrap/pointer 'CMS_sign)))
 
 ;;int CMS_final(CMS_ContentInfo *cms, BIO *data, BIO *dcont, unsigned int flags);
 
@@ -260,8 +275,8 @@
 ;;CMS_ContentInfo *CMS_encrypt(STACK_OF(X509) *certs, BIO *in,
   ;;                           const EVP_CIPHER *cipher, unsigned int flags);                          
 
-(define-crypto CMS_encrypt(_fun _STACK _BIO _EVP_CIPHER _int -> _CMS_ContentInfo)
-  #:wrap (err-wrap/pointer 'CMS_encrypt))
+(define-crypto CMS_encrypt(_fun _STACK _BIO _EVP_CIPHER _int -> _CMS_ContentInfo/null)
+  #:wrap (compose (allocator CMS_ContentInfo_free) (err-wrap/pointer 'CMS_encrypt)))
 
 
 
@@ -276,11 +291,11 @@
 
 (define-crypto d2i_CMS_ContentInfo (_fun
                           (_pointer = #f) _dptr_to_bytes _long -> _CMS_ContentInfo/null)
-  #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_CMS_ContentInfo)))
+  #:wrap (compose (allocator CMS_ContentInfo_free) (err-wrap/pointer 'd2i_CMS_ContentInfo)))
 
 ;;int CMS_decrypt(CMS_ContentInfo *cms, EVP_PKEY *pkey, X509 *cert, BIO *dcont, BIO *out, unsigned int flags);
 
-(define-crypto CMS_decrypt (_fun _CMS_ContentInfo _EVP_PKEY _X509 (_pointer = #f) _BIO _uint -> _int)
+(define-crypto CMS_decrypt (_fun _CMS_ContentInfo _EVP_PKEY _X509/null (_pointer = #f) _BIO _uint -> _int)
   #:wrap (err-wrap 'CMS_decrypt))
 
 ;; CMS_ContentInfo *SMIME_read_CMS(BIO *in, BIO **bcont);
@@ -289,12 +304,14 @@
   #:wrap (err-wrap/pointer 'SMIME_read_CMS))
 
 ;;int SMIME_write_CMS(BIO *out, CMS_ContentInfo *cms, BIO *data, int flags);
+(define-crypto SMIME_write_CMS (_fun _CMS_ContentInfo _BIO _int -> _int)
+  #:wrap (err-wrap 'SMIME_read_CMS))
 
 ;;ASN1_OCTET_STRING *CMS_SignerInfo_get0_signature(CMS_SignerInfo *si);
 
 (define-crypto CMS_SignerInfo_get0_signature (_fun _CMS_SignerInfo -> (octet : _pointer)
                                                    -> (ptr-ref octet _asn1_string_st))
-  #:wrap (err-wrap/pointer 'SMIME_read_CMS))
+  #:wrap (err-wrap/pointer 'CMS_SignerInfo_get0_signature))
 
  (define asn1-octet-members-as-list (lambda (instance)
                                (let ([octet-length (asn1_string_st-length instance)]

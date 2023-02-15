@@ -28,8 +28,7 @@
          "../common/cmssigbase.rkt"
          "../common/asn1.rkt"
          "../common/error.rkt"
-         "cmssigffi.rkt"
-         "digest.rkt")
+         "cmssigffi.rkt")
 (provide (all-defined-out))
 
 (define libcrypto-cms-sign%
@@ -49,8 +48,8 @@
                                       (let* ([cert-len (bytes-length cert-bytes)]                                             
                                              [pkey-len (bytes-length pkey-bytes)]
                                              [data-len (bytes-length data-bytes)]                                                                                          
-                                             [bio_mem_data (BIO_new_mem_buf (buff-pointer-new data-bytes) data-len)]
-                                             [bio_mem_x509 (BIO_new_mem_buf (buff-pointer-new cert-bytes) cert-len)]                                             
+                                             [bio_mem_data (BIO_new_mem_buf data-bytes data-len)]
+                                             [bio_mem_x509 (BIO_new_mem_buf cert-bytes cert-len)]                                             
                                              [x509Cert (d2i_X509_bio bio_mem_x509)]                                             
                                              [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes pkey-len)]
                                              [cert-stack (cert-list-to-stack cert-stack-list)]
@@ -70,8 +69,8 @@
       (let* ([cert-len (bytes-length cert-bytes)]                                             
              [pkey-len (bytes-length pkey-bytes)]
              [data-len (bytes-length data-bytes)]
-             [bio_mem_data (BIO_new_mem_buf (buff-pointer-new data-bytes) data-len)]
-             [bio_mem_x509 (BIO_new_mem_buf (buff-pointer-new cert-bytes) cert-len)]
+             [bio_mem_data (BIO_new_mem_buf data-bytes data-len)]
+             [bio_mem_x509 (BIO_new_mem_buf cert-bytes cert-len)]
              [x509Cert (d2i_X509_bio bio_mem_x509)]
              [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes pkey-len)]
              [cert-stack (cert-list-to-stack cert-stack-list)]
@@ -84,14 +83,14 @@
       ))
     
     (define/public (cms-add-cert cert-bytes)
-      (let* ([bio-mem-cert (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]
+      (let* ([bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]
              [cert-to-add (d2i_X509_bio bio-mem-cert)])               
                (CMS_add1_cert (get-field content-info-ptr this) cert-to-add)
                
         ))
     
     (define/public (cms-add-signer cert-bytes pkey-bytes pkey-fmt digest-name flags)
-      (let* ([bio-mem-cert (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]                                             
+      (let* ([bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]                                             
              [cert-to-add (d2i_X509_bio bio-mem-cert)]
              [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
              [evp-digest (EVP_get_digestbyname digest-name)]
@@ -106,35 +105,44 @@
       (let* ([evp-cipher (EVP_get_cipherbyname cipher-name)]
            
             [data-len (bytes-length data-bytes)]                                                                                          
-            [bio_mem_data (BIO_new_mem_buf (buff-pointer-new data-bytes) data-len)]
+            [bio_mem_data (BIO_new_mem_buf data-bytes data-len)]
             [cert-stack (cert-list-to-stack cert-stack-list)]
             [content-info (CMS_encrypt cert-stack bio_mem_data evp-cipher (bitwise-ior flags CMS_PARTIAL))])
         
       (begin (set-field! content-info-ptr this content-info)           
                (set-field! data-buffer this data-bytes))))
 
-    (define/public (cms-add-receipient-cert cert-bytes flags)
-      (let* ([bio-mem-cert (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]                                             
+    (define/public (cms-add-recipient-cert cert-bytes flags)
+      (let* ([bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]                                             
              [cert-to-add (d2i_X509_bio bio-mem-cert)])
-          (CMS_add1_recipient_cert (get-field content-info-ptr this) cert-to-add flags))
+          (CMS_add1_recipient_cert (get-field content-info-ptr this) cert-to-add (bitwise-ior flags CMS_PARTIAL)))
       )
 ;; end encrypt enveloped data
+    
+    (define/public (smime-write-CMS fname flags)
+      (let ([bio-out (build-writeable-mem-bio)])
+        ;; smime write seems not write correctly to mem bio
+        (begin 1;;(SMIME_write_CMS (get-field  content-info-ptr this) bio-out (bitwise-ior flags CMS_PARTIAL))
+               ;;(write-bytes-from-membio fname bio-out)
+               )))
+    
     (define/public (cms-signerinfo-sign)
       (CMS_SignerInfo_sign (get-field signer-info-ptr this)))
     
     (define/public (cms-sign-finalize data-bytes flags)
       (let* ([data-len (bytes-length data-bytes)]                                                                                          
-             [bio-mem-data (BIO_new_mem_buf (buff-pointer-new data-bytes) data-len)])
+             [bio-mem-data (BIO_new_mem_buf data-bytes data-len)])
         (begin 
               (CMS_final (get-field content-info-ptr this) bio-mem-data #f (bitwise-ior flags CMS_PARTIAL))
         )))    
 
-    (define/public (cms-sign-receipt cert-bytes pkey-bytes flags)
+    (define/public (cms-sign-receipt cert-bytes cert-stack-list pkey-bytes pkey-fmt flags)
       (let* ([signer-info (get-first-signer-info)]
-            [bio-mem-cert (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]
+            [bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]
             [cert-to-sign (d2i_X509_bio bio-mem-cert)]
-            [pkey (d2i_PrivateKey EVP_PKEY_RSA pkey-bytes (bytes-length pkey-bytes))])
-        (CMS_sign_receipt signer-info cert-to-sign pkey #f flags)
+            [cert-stack (cert-list-to-stack cert-stack-list)]
+            [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))])
+        (CMS_sign_receipt signer-info cert-to-sign pkey cert-stack flags)
         ))
 
     (define/public (get-cms-content-info )
@@ -177,7 +185,7 @@
 
     (define/public (cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
       (let* ([content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]            
-            [bio-mem-cert (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]                                             
+            [bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]                                             
             [cert-to-select (d2i_X509_bio bio-mem-cert)]
             [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
             [bio-out (build-writeable-mem-bio)]
@@ -211,7 +219,7 @@
      (let*([port (open-file-output-port fname (file-options no-fail))]
        [length (bytes-length buffer)])
        (begin
-       (write-bytes buffer port 0 length)
+       (write-bytes-avail buffer port 0 length)
        (close-output-port port))
        )))
 
@@ -224,7 +232,7 @@
            [buffer (make-bytes 1024 65)]
            [length (bytes-length buffer)])
        (begin
-         (displayln (list'bufflen length))
+         
        (write-bytes-from-membio-internal mem-bio port buffer length length)
        (close-output-port port))
        )))
@@ -232,7 +240,7 @@
 (define (write-bytes-from-membio-internal mem-bio port buffer length read-len)
       (cond [(equal? read-len length)
              (let ([bytes-read (BIO_read mem-bio buffer length)])
-               (begin (write-bytes buffer port 0 bytes-read)
+               (begin (write-bytes-avail buffer port 0 bytes-read)
                (write-bytes-from-membio-internal mem-bio port buffer length bytes-read))
                )]
              [else 1])
@@ -255,7 +263,7 @@
 (define (cert-list-to-stack-internal stack cert-list)
       (cond [(not (null? cert-list))
              (let* ([cert-bytes (car cert-list)]
-                    [bio_mem_x509 (BIO_new_mem_buf (buff-pointer-new cert-bytes) (bytes-length cert-bytes))]
+                    [bio_mem_x509 (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]
                     [x509Cert (d2i_X509_bio bio_mem_x509)]
                     [size (OPENSSL_sk_push stack x509Cert)])               
                (cert-list-to-stack-internal stack (cdr cert-list)))]
