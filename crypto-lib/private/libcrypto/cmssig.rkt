@@ -33,11 +33,9 @@
          get-asn1-data)
 
 (define libcrypto-cms-sign%
-  (class object%
-    ;;(class* impl-base% (cms-sign<%>)
-    ;;(inherit-field factory)
-    ;;(super-new (spec 'libcrypto-cms-sign))
-  (super-new)
+  (class* impl-base% (cms-sign<%>)
+  (inherit-field factory)
+  (super-new (spec 'cms-sign))
 
     (field [content-info-ptr #f]
            [signer-info-ptr #f]
@@ -154,8 +152,9 @@
     
     (define/public (get-cms-content-info/DER)      
             (i2d i2d_CMS_ContentInfo (get-field content-info-ptr this)))
-    
-    
+
+    (define/public (get-pkey-format-from-sym pkey-fmt)
+                   (get-pkey-format-id pkey-fmt))    
     
     (define/private (get-first-signer-info)
       (let ([stack (CMS_get0_SignerInfos (get-field content-info-ptr this))])

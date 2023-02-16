@@ -4,6 +4,7 @@
          racket/class
          racket/match crypto crypto/libcrypto         
          "cmssig.rkt"
+         "../common/cmssigbase.rkt"
          "ffi.rkt"
          
           
@@ -22,7 +23,7 @@
                                         [ca-cert-bytes (read-bytes-from-file ca-cert-fname)]
                                         [pkey-bytes (read-bytes-from-file pkey-fname)]
                                         [data-bytes  (read-bytes-from-file data-fname)]
-                                        [sign-impl (make-object libcrypto-cms-sign% )]
+                                        [sign-impl (new libcrypto-cms-sign%  (factory libcrypto-factory))]
                                        [cms-sig-der (send sign-impl cms-sign-sure cert-bytes pkey-bytes pkey-fmt 
                                                           (list ca-cert-bytes)
                                                           data-bytes flags)])                                   
@@ -36,7 +37,7 @@
                                         [data-bytes  (read-bytes-from-file data-fname)]
                                         [sig-cert-bytes (read-bytes-from-file sig-cert-fname)]
                                         [sig-pkey-bytes (read-bytes-from-file sig-pkey-fname)]
-                                        [sign-impl (make-object libcrypto-cms-sign%)])
+                                        [sign-impl (new libcrypto-cms-sign%  (factory libcrypto-factory))])
                                        (begin (send sign-impl cms-init-signing cert-bytes pkey-bytes pkey-fmt
                                                     '()
                                                     data-bytes flags)
@@ -59,7 +60,7 @@
                                         [data-bytes  (read-bytes-from-file data-fname)]
                                         [sig-cert-bytes (read-bytes-from-file sig-cert-fname)]
                                         [sig-pkey-bytes (read-bytes-from-file sig-pkey-fname)]
-                                        [sign-impl (make-object libcrypto-cms-sign%)]
+                                        [sign-impl (new libcrypto-cms-sign%  (factory libcrypto-factory))]
                                         [cert-stack-list (list cert-bytes ca-cert-bytes)])
                                        (begin 
                                               (display (send sign-impl cms-encrypt cert-stack-list data-bytes "AES-256-CBC" flags))                                              
