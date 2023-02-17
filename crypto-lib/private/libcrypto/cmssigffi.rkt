@@ -162,11 +162,11 @@
  
 ;; define read funcion for getting a _X509 from DER
 (define-crypto d2i_X509 (_fun
-                          (_pointer = #f) _dptr_to_bytes _long -> _X509)
+                          (_pointer = #f) _dptr_to_bytes _long -> _X509/null)
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509)))
 
 (define-crypto d2i_X509_bio (_fun
-                          _BIO (_pointer = #f) -> _X509)
+                          _BIO (_pointer = #f) -> _X509/null)
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509_bio)))
 
 ;; CMS signing

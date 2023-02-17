@@ -45,8 +45,10 @@
   (define-crypto ERR_load_crypto_strings (_fun -> _void) #:fail (K void))
   (define-crypto OpenSSL_add_all_ciphers (_fun -> _void) #:fail (K void))
   (define-crypto OpenSSL_add_all_digests (_fun -> _void) #:fail (K void))
+  (define-crypto OpenSSL_add_all_algorithms (_fun -> _void) #:fail (K void))
   (ERR_load_crypto_strings)
   (OpenSSL_add_all_ciphers)
+  (OpenSSL_add_all_algorithms)
   (OpenSSL_add_all_digests))
 
 (define-crypto CRYPTO_free
