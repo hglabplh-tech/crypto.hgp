@@ -48,11 +48,11 @@
                                               (displayln (send sign-impl get-cms-content-info-type))
                                               (let ([cms-sig-der (send sign-impl get-cms-content-info/DER)]                                                    )
                                        (begin (write-bytes-to-file (car out-names) cms-sig-der)
-                                              ;;(send sign-impl  smime-write-CMS (cadr out-names) 0)
+                                              (send sign-impl  smime-write-CMS (cadr out-names) '())
                                               )))
                                    )))
 
-(define generate-cms-envelop-from-files (lambda(cert-fname ca-cert-fname pkey-fname pkey-fmt data-fname out-names sig-cert-fname
+(define generate-cms-encrypt-from-files (lambda(cert-fname ca-cert-fname pkey-fname pkey-fmt data-fname out-names sig-cert-fname
                                                                  sig-pkey-fname flags sig-flags)
                                  (let* ([cert-bytes (read-bytes-from-file cert-fname)]
                                         [ca-cert-bytes (read-bytes-from-file ca-cert-fname)]
@@ -61,7 +61,7 @@
                                         [sig-cert-bytes (read-bytes-from-file sig-cert-fname)]
                                         [sig-pkey-bytes (read-bytes-from-file sig-pkey-fname)]
                                         [sign-impl (new libcrypto-cms-sign%  (factory libcrypto-factory))]
-                                        [cert-stack-list (list cert-bytes ca-cert-bytes)])
+                                        [cert-stack-list (list cert-bytes)])
                                        (begin 
                                               (display (send sign-impl cms-encrypt cert-stack-list data-bytes "AES-256-CBC" flags))                                              
                                               (display (send sign-impl cms-add-recipient-cert sig-cert-bytes '()))
@@ -70,7 +70,7 @@
                                               (displayln (send sign-impl get-cms-content-info-type))
                                               (let ([cms-sig-der (send sign-impl get-cms-content-info/DER)]                                                    )
                                        (begin (write-bytes-to-file (car out-names) cms-sig-der)
-                                              (send sign-impl  smime-write-CMS (cadr out-names) 0)
+                                              (send sign-impl  smime-write-CMS (cadr out-names) '())
                                               )))
                                    )))
 
@@ -82,6 +82,16 @@
                                         )                                       
 
                                    (send check-impl cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags))))
+
+(define cms-smime-decrypt (lambda(cert-fname pkey-fname pkey-fmt contentinfo-file fname flags )
+                                 (let* ([cert-bytes (read-bytes-from-file cert-fname)]
+                                        [contentinfo-buffer (read-bytes-from-file contentinfo-file)]
+                                        [pkey-bytes (read-bytes-from-file pkey-fname)]                        
+                                        [check-impl (make-object libcrypto-cms-check-explore%)]
+                                        )                                       
+                                   (begin 
+                                   (send check-impl cms-smime-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
+                                          ))))
                     
 
 
@@ -92,23 +102,24 @@
                                         [content-info-bytes (read-bytes-from-file signature-name)]
                                         [check-impl (make-object libcrypto-cms-check-explore%)]
                                         [cert-stack-list (list cert-bytes ca-cert-bytes)])
-                                   (begin (display (send check-impl cms-sig-verify content-info-bytes (list cert-bytes  ca-cert-bytes sig-cert-bytes) flags))
+                                   (begin                                     
+                                     (display (send check-impl cms-sig-verify content-info-bytes (list cert-bytes  ca-cert-bytes sig-cert-bytes) flags))
                                    (send check-impl cms-signinfo-get-first-signature))
                                    )))
 
 (define outage (generate-cms-from-signature-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
                                              "data/freeware-user-key.der" 'rsa-key "pkey.rkt" 
-                                             "data/cms-sig.pkcs7" '()))
+                                             "data/cms-sig.pkcs7" '(cms-cades)))
 
 (define outage-ext (generate-cms-from-signature-files-ext "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
                                              "data/freeware-user-key.der" 'rsa-key "pkey.rkt" (list "data/cms-sig-ext.pkcs7"
-                                                                                                    "data/cms-sig-ext-SMIME.pkcs7")
+                                                                                                    "data/cms-sig-ext-SMIME.smime")
                                              "data/freeware-user-cert_1.der"
-                                             "data/freeware-user-key_1.der" '() '()))
+                                             "data/freeware-user-key_1.der" '(cms-cades) '(cms-cades)))
 
-(define outage-envelop (generate-cms-envelop-from-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
+(define outage-envelop (generate-cms-encrypt-from-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
                                              "data/freeware-user-key.der" 'rsa-key "ffi.rkt" (list "data/cms-envelop-ext.pkcs7"
-                                                                                                    "data/cms-envelop-ext-SMIME.pkcs7")
+                                                                                                    "data/cms-envelop-ext-SMIME.smime")
                                              "data/freeware-user-cert_1.der"
                                              "data/freeware-user-key_1.der" '() '()))
 
@@ -123,3 +134,4 @@
 (printf "Attribute-List ~a ~n" (build-attr-val-from-list 0 '(cms-detached cms-binary cms-partial)))
 
 (cms-decrypt "data/freeware-user-cert.der" "data/freeware-user-key.der" 'rsa-key  "data/cms-envelop-ext.pkcs7" "data/out.bin" '(cms-binary))
+(cms-smime-decrypt "data/freeware-user-cert.der" "data/freeware-user-key.der" 'rsa-key  "data/cms-envelop-ext-SMIME.smime" "data/out-smime.bin" '(cms-binary))

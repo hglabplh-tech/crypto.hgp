@@ -128,9 +128,19 @@
     (define/public (smime-write-CMS fname flags)
       (let ([bio-out (build-writeable-mem-bio)])
         ;; smime write seems not write correctly to mem bio
-        (begin 1;;(SMIME_write_CMS (get-field  content-info-ptr this) bio-out (bitwise-ior flags CMS_PARTIAL))
-               ;;(write-bytes-from-membio fname bio-out)
-               )))
+        (begin (SMIME_write_CMS bio-out (get-field  content-info-ptr this)  #f (build-attr-val-from-list
+                                                                   0 flags)))
+               (write-bytes-from-membio fname bio-out)
+               ))
+
+    (define/public (smime-write-CMS-detached fname data-bytes flags)
+      (let ([bio-out (build-writeable-mem-bio)]
+             [bio_mem_data (BIO_new_mem_buf data-bytes (bytes-length data-bytes))])
+        ;; smime write seems not write correctly to mem bio
+        (begin (SMIME_write_CMS bio-out (get-field  content-info-ptr this)  (build-attr-val-from-list
+                                                                   0 flags)))
+               (write-bytes-from-membio fname bio-out)
+               ))
     
     (define/public (cms-signerinfo-sign)
       (CMS_SignerInfo_sign (get-field signer-info-ptr this)))
@@ -184,6 +194,7 @@
            [x509-ptr #f]
            [data-buffer #f])
     (super-new)
+    
     (define/public (cms-sig-verify contentinfo-buffer cert-stack-list flags)
       (let ([content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]
             [cert-stack (cert-list-to-stack cert-stack-list)])
@@ -201,9 +212,25 @@
             [cert-to-select (d2i_X509_bio bio-mem-cert)]
             [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
             [bio-out (build-writeable-mem-bio)]
-            [result (CMS_decrypt content-info pkey cert-to-select bio-out (build-attr-val-from-list 0
-                                                                    flags))])
-            
+            [result (begin (CMS_decrypt_set1_pkey content-info pkey cert-to-select)
+                      (CMS_decrypt content-info #f #f bio-out (build-attr-val-from-list 0
+                                                                    flags)))])            
+            (write-bytes-from-membio fname bio-out)))
+
+    (define/public (cms-smime-decrypt smimecont-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
+      (let* ([smime-bio (BIO_new_mem_buf smimecont-buffer (bytes-length smimecont-buffer))]
+             [content-info
+              (cond [(not (ptr-equal? smime-bio #f)) (SMIME_read_CMS smime-bio)]
+                      [else #f])]
+            [bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]                                             
+            [cert-to-select (cond [(not (ptr-equal? bio-mem-cert #f)) (d2i_X509_bio bio-mem-cert)]
+                      [else  #f])]
+            [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
+            [bio-out (build-writeable-mem-bio)]
+            [result (begin
+                      (CMS_decrypt_set1_pkey content-info pkey cert-to-select)
+                      (CMS_decrypt content-info #f #f bio-out (build-attr-val-from-list 0
+                                                                    flags)))])            
             (write-bytes-from-membio fname bio-out)))
             
                

@@ -296,17 +296,23 @@
 
 ;;int CMS_decrypt(CMS_ContentInfo *cms, EVP_PKEY *pkey, X509 *cert, BIO *dcont, BIO *out, unsigned int flags);
 
-(define-crypto CMS_decrypt (_fun _CMS_ContentInfo _EVP_PKEY _X509/null (_pointer = #f) _BIO _uint -> _int)
-  #:wrap (err-wrap 'CMS_decrypt))
+(define-crypto CMS_decrypt (_fun _CMS_ContentInfo _EVP_PKEY/null _X509/null (_pointer = #f) _BIO _uint -> _int)
+  #:wrap (err-wrap 'CMS_decrypt)) ;;FIXME
+
+;;int CMS_decrypt_set1_pkey(CMS_ContentInfo *cms, EVP_PKEY *pk, X509 *cert); :: give it a try to use both functions see
+;;https://www.openssl.org/docs/manmaster/man3/CMS_decrypt.html
+
+(define-crypto CMS_decrypt_set1_pkey (_fun _CMS_ContentInfo _EVP_PKEY _X509 -> _int)
+  #:wrap (err-wrap 'CMS_decrypt_set1_pkey))
 
 ;; CMS_ContentInfo *SMIME_read_CMS(BIO *in, BIO **bcont);
 
-(define-crypto SMIME_read_CMS (_fun _BIO (_BIO = #f) -> _CMS_ContentInfo)
+(define-crypto SMIME_read_CMS (_fun _BIO (_pointer = #f) -> _CMS_ContentInfo)
   #:wrap (err-wrap/pointer 'SMIME_read_CMS))
 
 ;;int SMIME_write_CMS(BIO *out, CMS_ContentInfo *cms, BIO *data, int flags);
-(define-crypto SMIME_write_CMS (_fun _CMS_ContentInfo _BIO _int -> _int)
-  #:wrap (err-wrap 'SMIME_read_CMS))
+(define-crypto SMIME_write_CMS (_fun _BIO _CMS_ContentInfo _BIO/null _int -> _int)
+  #:wrap (err-wrap 'SMIME_write_CMS))
 
 ;;ASN1_OCTET_STRING *CMS_SignerInfo_get0_signature(CMS_SignerInfo *si);
 
