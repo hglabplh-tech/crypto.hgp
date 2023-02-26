@@ -37,11 +37,6 @@
   (inherit-field factory)
   (super-new (spec 'cms-sign))
 
-    (field [content-info-ptr #f]
-           [signer-info-ptr #f]
-           [x509-ptr #f]
-           [data-buffer #f]
-           [cert-chain-stack (OPENSSL_sk_new_null)])
     
       (define/public (cms-sign-sure cert-bytes  pkey-bytes pkey-fmt cert-stack-list data-bytes flags)
                                       (let* ([cert-len (bytes-length cert-bytes)]                                             
@@ -79,28 +74,24 @@
              [cert-stack (cert-list-to-stack cert-stack-list)]
              [content-info (CMS_sign  x509Cert pkey cert-stack bio_mem_data (build-attr-val-from-list
                                                                    (get-cms-attr 'cms-partial) flags))])
-        (begin
-              (set-field! content-info-ptr this content-info)
-               (set-field! x509-ptr this x509Cert)
-               (set-field! data-buffer this data-bytes))
-        
+        (box-immutable content-info)
       ))
     
-    (define/public (cms-add-cert cert-bytes)
+    (define/public (cms-add-cert box-content-info cert-bytes)
       (let* ([bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]
              [cert-to-add (d2i_X509_bio bio-mem-cert)])               
-               (CMS_add1_cert (get-field content-info-ptr this) cert-to-add)
+               (CMS_add1_cert (unbox box-content-info) cert-to-add)
                
         ))
     
-    (define/public (cms-add-signer cert-bytes pkey-bytes pkey-fmt digest-name flags)
+    (define/public (cms-add-signer box-content-info cert-bytes pkey-bytes pkey-fmt digest-name flags)
       (let* ([bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]                                             
              [cert-to-add (d2i_X509_bio bio-mem-cert)]
              [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
              [evp-digest (EVP_get_digestbyname digest-name)]
-             [signer-info (CMS_add1_signer (get-field content-info-ptr this) cert-to-add pkey evp-digest (build-attr-val-from-list 0 flags))]
+             [signer-info (CMS_add1_signer (unbox box-content-info) cert-to-add pkey evp-digest (build-attr-val-from-list 0 flags))]
              )      
-        (set-field! signer-info-ptr this signer-info)              
+        (box-immutable signer-info)
         ))
 
     ;;encrypt enveloped data
@@ -114,30 +105,29 @@
             [content-info (CMS_encrypt cert-stack bio_mem_data evp-cipher (build-attr-val-from-list
                                                                    (get-cms-attr 'cms-partial) flags))])
         
-      (begin (set-field! content-info-ptr this content-info)           
-               (set-field! data-buffer this data-bytes))))
+      (box-immutable content-info)))
 
-    (define/public (cms-add-recipient-cert cert-bytes flags)
+    (define/public (cms-add-recipient-cert box-content-info cert-bytes flags)
       (let* ([bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]                                             
              [cert-to-add (d2i_X509_bio bio-mem-cert)])
-          (CMS_add1_recipient_cert (get-field content-info-ptr this) cert-to-add (build-attr-val-from-list
+          (CMS_add1_recipient_cert (unbox box-content-info) cert-to-add (build-attr-val-from-list
                                                                    (get-cms-attr 'cms-partial) flags)))
       )
 ;; end encrypt enveloped data
     
-    (define/public (smime-write-CMS fname flags)
+    (define/public (smime-write-CMS box-content-info fname flags)
       (let ([bio-out (build-writeable-mem-bio)])
         ;; smime write seems not write correctly to mem bio
-        (begin (SMIME_write_CMS bio-out (get-field  content-info-ptr this)  #f (build-attr-val-from-list
+        (begin (SMIME_write_CMS bio-out (unbox  box-content-info)  #f (build-attr-val-from-list
                                                                    0 flags)))
                (write-bytes-from-membio fname bio-out)
                ))
 
-    (define/public (smime-write-CMS-detached fname data-bytes flags)
+    (define/public (smime-write-CMS-detached box-content-info fname data-bytes flags)
       (let ([bio-out (build-writeable-mem-bio)]
              [bio_mem_data (BIO_new_mem_buf data-bytes (bytes-length data-bytes))])
         ;; smime write seems not write correctly to mem bio
-        (begin (SMIME_write_CMS bio-out (get-field  content-info-ptr this)  (build-attr-val-from-list
+        (begin (SMIME_write_CMS bio-out (unbox  box-content-info)  (build-attr-val-from-list
                                                                    0 flags)))
                (write-bytes-from-membio fname bio-out)
                ))
@@ -145,11 +135,11 @@
     (define/public (cms-signerinfo-sign)
       (CMS_SignerInfo_sign (get-field signer-info-ptr this)))
     
-    (define/public (cms-sign-finalize data-bytes flags)
+    (define/public (cms-sign-finalize box-content-info data-bytes flags)
       (let* ([data-len (bytes-length data-bytes)]                                                                                          
              [bio-mem-data (BIO_new_mem_buf data-bytes data-len)])
         (begin 
-              (CMS_final (get-field content-info-ptr this) bio-mem-data #f (build-attr-val-from-list
+              (CMS_final (unbox box-content-info) bio-mem-data #f (build-attr-val-from-list
                                                                    (get-cms-attr 'cms-partial) flags))
         )))    
 
@@ -163,20 +153,20 @@
                                                                    0 flags))
         ))
 
-    (define/public (get-cms-content-info )
-      (get-field content-info-ptr this))
+    (define/public (get-cms-content-info box-content-info )
+      (unbox box-content-info))
 
-    (define/public (get-cms-content-info-type)
-        (get-asn1-data (CMS_get0_type (get-field content-info-ptr this))))
+    (define/public (get-cms-content-info-type box-content-info)
+        (get-asn1-data (CMS_get0_type (unbox box-content-info))))
     
-    (define/public (get-cms-content-info/DER)      
-            (i2d i2d_CMS_ContentInfo (get-field content-info-ptr this)))
+    (define/public (get-cms-content-info/DER box-content-info)      
+            (i2d i2d_CMS_ContentInfo (unbox box-content-info)))
 
     (define/public (get-pkey-format-from-sym pkey-fmt)
                    (get-pkey-format-id pkey-fmt))    
     
-    (define/private (get-first-signer-info)
-      (let ([stack (CMS_get0_SignerInfos (get-field content-info-ptr this))])
+    (define/private (get-first-signer-info box-content-info)
+      (let ([stack (CMS_get0_SignerInfos (unbox box-content-info))])
         (cond [(not (eq? (OPENSSL_sk_num stack) 0))
               (let ([sig-info (sk-typed-value stack 0 _CMS_SignerInfo)])
                
@@ -190,20 +180,17 @@
 
 (define libcrypto-cms-check-explore%
   (class object%
-    (field [content-info-ptr #f]
-           [x509-ptr #f]
-           [data-buffer #f])
+    
     (super-new)
     
     (define/public (cms-sig-verify contentinfo-buffer cert-stack-list flags)
       (let ([content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]
             [cert-stack (cert-list-to-stack cert-stack-list)])
             
-        (begin
-          (set-field! content-info-ptr this content-info)
+        (begin          
         (cond [(equal? (CMS_verify content-info cert-stack #f #f  (build-attr-val-from-list
                                                                    (get-cms-attr 'cms-no-signer-cert-verify) flags))  1    ) ;;CMS_NO_SIGNER_CERT_VERIFY
-               'success]
+               (box content-info)]
               [else 'fail]))))
 
     (define/public (cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
@@ -236,8 +223,8 @@
                
   
     
-    (define/public (cms-signinfo-get-first-signature)
-      (let* ([signer-info-stack (CMS_get0_SignerInfos (get-field content-info-ptr this))]
+    (define/public (cms-signinfo-get-first-signature box-content-info)
+      (let* ([signer-info-stack (CMS_get0_SignerInfos (unbox box-content-info))]
              [first-sig-info (sk-typed-value signer-info-stack 0 _CMS_SignerInfo)])
         (asn1-octet-members-as-list (CMS_SignerInfo_get0_signature first-sig-info))))
 ))

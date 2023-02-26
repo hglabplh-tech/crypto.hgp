@@ -296,15 +296,15 @@
 (define cms-sign<%>
   (interface (impl<%>)
     [cms-sign-sure            (->m bytes? bytes? symbol? (listof bytes?) bytes? (listof symbol?) bytes?)]
-    [cms-init-signing         (->m bytes? bytes? symbol? list? bytes? (listof symbol?) any/c)]
-    [cms-add-cert             (->m bytes? integer?)]
+    [cms-init-signing         (->m bytes? bytes? symbol? list? bytes? (listof symbol?) box?)]
+    [cms-add-cert             (->m box? bytes? integer?)]
     [cms-signerinfo-sign      (->m integer?)]
-    [cms-add-signer           (->m bytes? bytes? symbol? string? (listof symbol?) any/c)]
-    [cms-sign-finalize        (->m bytes? (listof symbol?) integer?)]
-    [get-cms-content-info/DER (->m bytes?)]
+    [cms-add-signer           (->m box? bytes? bytes? symbol? string? (listof symbol?) any/c)]
+    [cms-sign-finalize        (->m box? bytes? (listof symbol?) integer?)]
+    [get-cms-content-info/DER (->m box? bytes?)]
     [cms-sign-receipt         (->m bytes? list? bytes? symbol? (listof symbol?) any/c)]
-    [cms-add-recipient-cert   (->m bytes? (listof symbol?) any/c)]
-    [cms-encrypt              (->m list? bytes? string? (listof symbol?) any/c)]
-    [get-cms-content-info-type (->m string?)]
+    [cms-add-recipient-cert   (->m box? bytes? (listof symbol?) any/c)]
+    [cms-encrypt              (->m list? bytes? string? (listof symbol?) box?)]
+    [get-cms-content-info-type (->m box? string?)]
     [get-pkey-format-from-sym  (->m symbol? any/c)]
     ))
