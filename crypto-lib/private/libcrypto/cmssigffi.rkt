@@ -153,7 +153,7 @@
 
 (define-crypto X509_free
   (_fun _X509 -> _void)
-  #:wrap deallocator)
+  #:wrap (deallocator))
 
 (define-crypto X509_new
   (_fun -> _X509/null)
@@ -352,4 +352,24 @@
         [buffer (make-bytes length)])
     (memcpy buffer bytes (bytes-length buffer) _byte) (bytes->hex-string buffer)))
     
-               
+
+
+;;===============================================
+;;simple encryption /decryption
+;;===============================================
+
+;;CMS_ContentInfo *CMS_EncryptedData_encrypt(BIO *in,
+;;const EVP_CIPHER *cipher, const unsigned char *key, size_t keylen,
+  ;;  unsigned int flags);
+
+(define-crypto CMS_EncryptedData_encrypt (_fun _BIO _EVP_CIPHER  _bytes _size _uint -> _CMS_ContentInfo)
+  #:wrap (err-wrap/pointer 'CMS_EncryptedData_encrypt))
+
+;;int CMS_EncryptedData_decrypt(CMS_ContentInfo *cms,
+;;                              const unsigned char *key, size_t keylen,
+;;                              BIO *dcont, BIO *out, unsigned int flags);
+
+(define-crypto CMS_EncryptedData_decrypt(_fun _CMS_ContentInfo
+                              _bytes _size _BIO _BIO _uint -> _int)
+   #:wrap (err-wrap 'CMS_EncryptedData_decrypt))
+  
