@@ -37,7 +37,7 @@
     (define/public (cms-add-cert box-content-info cert-bytes) #f)
     (define/public (cms-signerinfo-sign) #f)
     (define/public (cms-add-signer box-content-info cert-bytes pkey-bytes digest-name flags) #f)
-    (define/public (cms-sign-finalize data-bytes flags) #f)
+    (define/public (cms-sign-finalize box-content-info data-bytes flags) #f)
     (define/public (get-cms-content-info box-content-info ) #f)
     (define/public (get-cms-content-info/DER box-content-info) #f)
     (define/public (cms-sign-receipt box-content-info cert-bytes cert-stack-list pkey-bytes pkey-fmt flags) #f)

@@ -676,6 +676,61 @@
 
 ;; ----------------------------------------
 
+;; ---- cms signing ---------
+
+ ;;[cms-sign-sure            (->m bytes? bytes? symbol? (listof bytes?) bytes? (listof symbol?) bytes?)]
+(define (cms-sign-simple cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-sign-simple
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign cms-sign-sure cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags))))
+        (crypto-error "unable to sign data"))))
+   ;; [cms-init-signing         (->m bytes? bytes? symbol? list? bytes? (listof symbol?) box?)]
+(define (cms-init-signing cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-init-signing
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign cms-init-signing cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags))))
+        (crypto-error "unable to initialize signing data"))))
+    ;;[cms-add-cert             (->m box? bytes? integer?)]
+(define (cms-add-signing-cert box-content-info cert-bytes [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-add-signing-cert
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign cms-add-cert box-content-info cert-bytes))))
+        (crypto-error "unable to add a signing certificate"))))
+
+    ;;[cms-signerinfo-sign      (->m integer?)]
+    ;;[cms-add-signer           (->m box? bytes? bytes? symbol? string? (listof symbol?) any/c)]
+(define (cms-add-signer  box-content-info cert-bytes pkey-bytes digest-name flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-add-signer
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign cms-add-signer  box-content-info cert-bytes pkey-bytes digest-name flags))))
+        (crypto-error "unable to add a signer"))))
+
+    ;;[cms-sign-finalize        (->m box? bytes? (listof symbol?) integer?)]
+(define (cms-sign-finalize  box-content-info data-bytes flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-sign-finalize
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign cms-sign-finalize  box-content-info data-bytes flags))))
+        (crypto-error "unable to finalize signing"))))
+    ;;[get-cms-content-info/DER (->m box? bytes?)]
+(define (get-cms-content-info/DER  box-content-info [factory/s (crypto-factories)])
+  (with-crypto-entry 'get-cms-content-info/DER
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign get-cms-content-info/DER  box-content-info))))
+        (crypto-error "unable to add a signer"))))
+    ;;[cms-sign-receipt         (->m bytes? list? bytes? symbol? (listof symbol?) any/c)]
+    ;;[cms-add-recipient-cert   (->m box? bytes? (listof symbol?) any/c)]
+    ;;[cms-encrypt              (->m list? bytes? string? (listof symbol?) box?)]
+    ;;[get-cms-content-info-type (->m box? string?)]
+    ;;[get-pkey-format-from-sym  (->m symbol? any/c)]
+
+;;---------------------------
+
 (define (pk-sign pk msg #:digest [dspec #f] #:pad [pad #f])
   (with-crypto-entry 'pk-sign
     (send pk sign msg dspec pad)))
@@ -683,6 +738,8 @@
 (define (pk-verify pk msg sig #:digest [dspec #f] #:pad [pad #f])
   (with-crypto-entry 'pk-verify
     (send pk verify msg dspec pad sig)))
+
+
 
 (define (pk-sign-digest pk di dbuf #:pad [pad #f])
   (with-crypto-entry 'pk-sign-digest

@@ -23,6 +23,7 @@
          "cipher.rkt"
          "pkey.rkt"
          "kdf.rkt"
+         "cmssig.rkt"
          "ffi.rkt")
 (provide libcrypto-factory
          libcrypto1-factory
@@ -144,6 +145,12 @@
         [_ (super -get-kdf spec)]))
 
     ;; ----
+
+    ;;cms dfefinitions
+
+    (define/override (-get-cms-sign)
+      (new libcrypto-cms-sign% (factory this)))
+        ;;-----------
 
     (define/override (info key)
       (case key

@@ -227,5 +227,8 @@
          (define di (get-digest dspec))
          (and di (new sp800-108-double-pipeline-hmac-kdf-impl% (spec spec) (factory this) (di di)))]
         [_ #f]))
+
+    ;; the cms sign instance in a factory must have override
+    (define/public (-get-cms-sign) #f)
     ))
 
