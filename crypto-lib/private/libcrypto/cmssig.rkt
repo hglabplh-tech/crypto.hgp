@@ -97,13 +97,22 @@
     ;;encrypt enveloped data
 
     (define/public (cms-encrypt cert-stack-list data-bytes cipher-name flags)
-      (let* ([evp-cipher (EVP_get_cipherbyname cipher-name)]
-           
+      (let* ([evp-cipher (EVP_get_cipherbyname cipher-name)]           
             [data-len (bytes-length data-bytes)]                                                                                          
             [bio_mem_data (BIO_new_mem_buf data-bytes data-len)]
             [cert-stack (cert-list-to-stack cert-stack-list)]
             [content-info (CMS_encrypt cert-stack bio_mem_data evp-cipher (build-attr-val-from-list
                                                                    (get-cms-attr 'cms-partial) flags))])
+        
+      (box-immutable content-info)))
+
+    (define/public (cms-encrypt-with-skey skey-bytes data-bytes cipher-name flags)
+      (let* ([evp-cipher (EVP_get_cipherbyname cipher-name)]           
+            [data-len (bytes-length data-bytes)]                                                                                          
+            [bio_mem_data (BIO_new_mem_buf data-bytes data-len)]
+            [content-info (CMS_EncryptedData_encrypt bio_mem_data evp-cipher skey-bytes (bytes-length skey-bytes)
+                                                     (build-attr-val-from-list
+                                                                   0 flags))])
         
       (box-immutable content-info)))
 
@@ -194,7 +203,7 @@
               [else 'fail]))))
 
     (define/public (cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
-      (let* ([content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]            
+      (let* ([content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]
             [bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]                                             
             [cert-to-select (d2i_X509_bio bio-mem-cert)]
             [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
@@ -221,7 +230,16 @@
             (write-bytes-from-membio fname bio-out)))
             
                
-  
+  (define/public (cms-decrypt-with-skey  contentinfo-buffer skey-bytes fname flags)
+      (let* ([bio-out (build-writeable-mem-bio)]
+             [content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]
+
+             [result (CMS_EncryptedData_decrypt content-info skey-bytes (bytes-length skey-bytes)
+                                                #f bio-out
+                                                     (build-attr-val-from-list
+                                                                   0 flags))])
+        
+      (write-bytes-from-membio fname bio-out)))
     
     (define/public (cms-signinfo-get-first-signature box-content-info)
       (let* ([signer-info-stack (CMS_get0_SignerInfos (unbox box-content-info))]
@@ -349,4 +367,9 @@
 ;; public caller for definition above
 (define (cert-list-to-stack cert-list)
       (cert-list-to-stack-internal (OPENSSL_sk_new_null) cert-list))
-    
+
+(define get-symkey
+  (lambda(cipher-name)
+    (let* ([evp-cipher (EVP_get_cipherbyname cipher-name)]
+           [key-len (EVP_CIPHER_key_length evp-cipher)])
+      (crypto-random-bytes key-len))))

@@ -27,6 +27,8 @@
          "ffi.rkt")
 (provide (protect-out (all-defined-out))
          libcrypto
+         EVP_CIPHER_get_key_length
+         EVP_CIPHER_key_length
          d2i_PrivateKey
          EVP_PKEY_RSA
          EVP_PKEY_DSA
@@ -308,7 +310,7 @@
 ;; CMS_ContentInfo *SMIME_read_CMS(BIO *in, BIO **bcont);
 
 (define-crypto SMIME_read_CMS (_fun _BIO (_pointer = #f) -> _CMS_ContentInfo)
-  #:wrap (err-wrap/pointer 'SMIME_read_CMS))
+  #:wrap (compose (allocator CMS_ContentInfo_free)(err-wrap/pointer 'SMIME_read_CMS)))
 
 ;;int SMIME_write_CMS(BIO *out, CMS_ContentInfo *cms, BIO *data, int flags);
 (define-crypto SMIME_write_CMS (_fun _BIO _CMS_ContentInfo _BIO/null _int -> _int)
@@ -362,14 +364,15 @@
 ;;const EVP_CIPHER *cipher, const unsigned char *key, size_t keylen,
   ;;  unsigned int flags);
 
-(define-crypto CMS_EncryptedData_encrypt (_fun _BIO _EVP_CIPHER  _bytes _size _uint -> _CMS_ContentInfo)
-  #:wrap (err-wrap/pointer 'CMS_EncryptedData_encrypt))
+(define-crypto CMS_EncryptedData_encrypt (_fun _BIO _EVP_CIPHER  _bytes _size _uint -> _CMS_ContentInfo/null)
+  #:wrap (compose (allocator CMS_ContentInfo_free)
+                   (err-wrap/pointer 'CMS_EncryptedData_encrypt)))
 
 ;;int CMS_EncryptedData_decrypt(CMS_ContentInfo *cms,
 ;;                              const unsigned char *key, size_t keylen,
 ;;                              BIO *dcont, BIO *out, unsigned int flags);
 
 (define-crypto CMS_EncryptedData_decrypt(_fun _CMS_ContentInfo
-                              _bytes _size _BIO _BIO _uint -> _int)
+                              _bytes _size _BIO/null _BIO _uint -> _int)
    #:wrap (err-wrap 'CMS_EncryptedData_decrypt))
   
