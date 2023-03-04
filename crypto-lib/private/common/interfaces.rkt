@@ -80,6 +80,9 @@
 (define info/c any/c)
 (define spec/c any/c)
 
+(define (cms-sign? x) (is-a? x cms-sign<%>))
+(define (cms-check-explore? x) (is-a? x cms-check-explore<%>))
+
 ;; ============================================================
 ;; Util
 

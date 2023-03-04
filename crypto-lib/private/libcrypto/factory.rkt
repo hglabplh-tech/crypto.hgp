@@ -150,6 +150,9 @@
 
     (define/override (-get-cms-sign)
       (new libcrypto-cms-sign% (factory this)))
+
+    (define/override (-get-cms-check-explore)
+      (new libcrypto-cms-check-explore% (factory this)))
         ;;-----------
 
     (define/override (info key)

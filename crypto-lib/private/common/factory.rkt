@@ -230,5 +230,6 @@
 
     ;; the cms sign instance in a factory must have override
     (define/public (-get-cms-sign) #f)
+    (define/public (-get-cms-check-explore) #f)
     ))
 
