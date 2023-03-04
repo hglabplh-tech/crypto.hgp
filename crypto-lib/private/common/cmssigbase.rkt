@@ -45,6 +45,19 @@
     (define/public (cms-add-recipient-cert box-content-info cert-bytes flags) #f)
     (define/public (get-cms-content-info-type box-content-info) #f)
     (define/public (get-pkey-format-from-sym pkey-fmt) #f)
+    (define/public (cms-encrypt-with-skey skey-bytes data-bytes cipher-name flags) #f)
+    (define/public (smime-write-CMS box-content-info fname flags) #f)
+    (define/public (smime-write-CMS-detached box-content-info fname data-bytes flags) #f)
     
-            ))
+    ))
+
+(define cms-check-explore-impl-base%
+  (class* impl-base% (cms-check-explore<%>)
+    (inherit about get-spec get-factory)
+    (super-new)
+    (define/public (cms-sig-verify contentinfo-buffer cert-stack-list flags) #f)
+    (define/public (cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags) #f)
+    (define/public (cms-smime-decrypt smimecont-buffer cert-bytes pkey-bytes pkey-fmt fname flags) #f)
+    (define/public (cms-decrypt-with-skey  contentinfo-buffer skey-bytes fname flags) #f)
+    (define/public (cms-signinfo-get-first-signature box-content-info) #f)))
 

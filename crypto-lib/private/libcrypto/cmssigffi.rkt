@@ -87,6 +87,11 @@
 (define BIO_CTRL_EOF            2)
 (define BIO_C_SET_BUF_MEM       114)
 
+;; content-info-types
+(define sig-cinfo-type            "2a864886f70d010702")
+(define encr-cinfo-type           "2a864886f70d010703")
+(define symmetric-encr-cinfo-type "2a864886f70d010706")
+
 
 
 ;;========================================

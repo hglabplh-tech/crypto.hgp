@@ -47,7 +47,8 @@
          pk-key?
          kdf-impl?
 
-         cms-sign<%>)
+         cms-sign<%>
+         cms-check-explore<%>)
 
 ;; ============================================================
 ;; General Notes
@@ -291,7 +292,7 @@
     ))
 
 ;;==============================================================
-;; CMS sign impl interface
+;; CMS sign / explore impl interface
 
 (define cms-sign<%>
   (interface (impl<%>)
@@ -308,3 +309,11 @@
     [get-cms-content-info-type (->m box? string?)]
     [get-pkey-format-from-sym  (->m symbol? any/c)]
     ))
+
+(define cms-check-explore<%>
+  (interface (impl<%>)
+    [cms-sig-verify (->m bytes? (listof bytes?) (listof symbol?) any/c)]
+    [cms-decrypt    (->m bytes? bytes? bytes? symbol? string? (listof symbol?) any/c)]
+    [cms-smime-decrypt (->m bytes? bytes? bytes? symbol? string? (listof symbol?) any/c)]
+    [cms-decrypt-with-skey  (->m bytes? bytes? string? (listof symbol?) any/c)]
+    [cms-signinfo-get-first-signature (->m box? list?)]))

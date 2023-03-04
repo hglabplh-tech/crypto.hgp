@@ -42,10 +42,10 @@
                                                     '()
                                                     data-bytes flags)])
                                               (begin (display (send sign-impl cms-add-cert content-info ca-cert-bytes))                                              
-                                              (display (send sign-impl cms-add-signer content-info sig-cert-bytes sig-pkey-bytes pkey-fmt "SHA512" sig-flags))
+                                              (displayln (send sign-impl cms-add-signer content-info sig-cert-bytes sig-pkey-bytes pkey-fmt "SHA512" sig-flags))
                                               ;;(display (send sign-impl cms-sign-receipt sig-cert-bytes (list)  sig-pkey-bytes pkey-fmt flags))
-                                              (display (send sign-impl cms-sign-finalize content-info data-bytes '()))
-                                              (displayln (send sign-impl get-cms-content-info-type content-info))
+                                              (displayln (send sign-impl cms-sign-finalize content-info data-bytes '()))
+                                              (printf "signature content-info-type: ~a\n" (send sign-impl get-cms-content-info-type content-info))
                                               (let ([cms-sig-der (send sign-impl get-cms-content-info/DER content-info )]                                                    )
                                        (begin (write-bytes-to-file (car out-names) cms-sig-der)
                                               (send sign-impl  smime-write-CMS content-info (cadr out-names) '())
@@ -65,7 +65,7 @@
                                               (begin (display (send sign-impl cms-add-recipient-cert content-info sig-cert-bytes '()))
                                               
                                               (displayln (send sign-impl cms-sign-finalize content-info data-bytes '()))
-                                              (displayln (send sign-impl get-cms-content-info-type content-info))
+                                              (printf "encryption content-info-type: ~a\n" (send sign-impl get-cms-content-info-type content-info))
                                               (let ([cms-sig-der (send sign-impl get-cms-content-info/DER content-info)]                                                    )
                                        (begin (write-bytes-to-file (car out-names) cms-sig-der)
                                               (send sign-impl  smime-write-CMS content-info (cadr out-names) '())
@@ -78,9 +78,10 @@
                                         [sign-impl (new libcrypto-cms-sign%  (factory libcrypto-factory))]
                                         
                                         [content-info (send sign-impl cms-encrypt-with-skey skey-bytes data-bytes  "AES-256-CBC" flags)])
-                                                                                          
+                                                  (begin
+                                                    (printf "symmetric encryption content-info-type: ~a\n" (send sign-impl get-cms-content-info-type content-info))
                                                       (let ([cms-sig-der (send sign-impl get-cms-content-info/DER content-info)])                                            
-                                       (begin (write-bytes-to-file out-name cms-sig-der)                                              
+                                       (write-bytes-to-file out-name cms-sig-der)                                              
                                               )))))
                                    
 
@@ -88,7 +89,7 @@
                                  (let* ([cert-bytes (read-bytes-from-file cert-fname)]
                                         [contentinfo-buffer (read-bytes-from-file contentinfo-file)]
                                         [pkey-bytes (read-bytes-from-file pkey-fname)]                        
-                                        [check-impl (make-object libcrypto-cms-check-explore%)]
+                                        [check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
                                         )                                       
 
                                    (send check-impl cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags))))
@@ -97,14 +98,14 @@
                                  (let* ([cert-bytes (read-bytes-from-file cert-fname)]
                                         [contentinfo-buffer (read-bytes-from-file contentinfo-file)]
                                         [pkey-bytes (read-bytes-from-file pkey-fname)]                        
-                                        [check-impl (make-object libcrypto-cms-check-explore%)]
+                                        [check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
                                         )                                       
                                    (begin 
                                    (send check-impl cms-smime-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
                                           ))))
                     
 (define cms-decrypt-with-skey  (lambda (contentinfo-file skey-bytes out-name flags)
-                                 (let* ([check-impl (make-object libcrypto-cms-check-explore%)]
+                                 (let* ([check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
                                         [contentinfo-buffer (read-bytes-from-file contentinfo-file)])
                                    (send check-impl cms-decrypt-with-skey  contentinfo-buffer skey-bytes out-name flags))))
                                  
@@ -114,7 +115,7 @@
                                         [ca-cert-bytes (read-bytes-from-file ca-cert-fname)]
                                         [sig-cert-bytes (read-bytes-from-file sig-cert-fname)]
                                         [content-info-bytes (read-bytes-from-file signature-name)]
-                                        [check-impl (make-object libcrypto-cms-check-explore%)]
+                                        [check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
                                         [cert-stack-list (list cert-bytes ca-cert-bytes)])
                                   
                                      (let ([content-info (send check-impl cms-sig-verify content-info-bytes
