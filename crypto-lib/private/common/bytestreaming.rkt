@@ -16,7 +16,7 @@
 (provide (all-defined-out))
 
 (define eof-stream '())
-(define bytes-stream
+(define bytes-stream%
   (class object%
     (field (buffer '())
            (read-list '()))
@@ -45,6 +45,7 @@
                      (let read ([lst '()] [index bytes-to-read])
                        (cond [(= index 0) lst]
                              [else (cond
+
                                      [(null? (list-tail intern-list (- bytes-to-read index))) lst]
                                      [(read (append lst
                                                     (list (car (list-tail intern-list (- bytes-to-read index)))))
@@ -60,22 +61,14 @@
       (list->bytes buffer))
     ))
 
-(let ([stream (new  bytes-stream)])
-  (send stream write-bytes (string->bytes/latin-1 "1234567890erdeistgrün "))
-  (send stream write-bytes (string->bytes/latin-1 "add-on-bytes "))
-  (send stream write-bytes (string->bytes/latin-1 "ABCDEFGHI"))
-  (let reader ([bytes-read (send stream read-range 5)])
-    (cond [(equal? (bytes-length bytes-read) 0) #f]
-          [else (printf "bytes read: ~a\n" bytes-read) (reader (send stream read-range 5))]))
-  (send stream reset)            
-  (printf "bytes read: ~a\n"(send stream read-range 5))
-  (printf "bytes read: ~a\n"(send stream read-range 5))
-  (printf "bytes read: ~a\n"(send stream read-range 5))
-  (printf "bytes read: ~a\n"(send stream read-range 5))
-  (printf "bytes read: ~a\n"(send stream read-range 5))
-  (printf "bytes read: ~a\n"(send stream read-range 5))
-  (printf "bytes read: ~a\n"(send stream read-range 5))
-  (printf "bytes read: ~a\n"(send stream read-range 5))
-  (printf "bytes read: ~a\n"(send stream read-range 5))
-  (printf "bytes of buffer: ~a\n"(send stream get-bytes)))
-  
+(define copy-stream (lambda (in-proc from out-proc)
+  (cond [(and (procedure? in-proc)
+              (procedure? out-proc)
+              (eq? (procedure-arity in-proc) 1)
+              (eq? (procedure-arity out-proc) 2))
+         (let copying ([read-values (in-proc from)])
+           (cond [(not read-values) #t]
+                 [else (out-proc (car read-values) (cadr read-values))
+                       (copying (in-proc from))]))]
+        [else (error "parameters mismatch")])))
+
