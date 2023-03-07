@@ -678,6 +678,19 @@
 
 ;; ---- cms signing ---------
 
+(provide
+ (contract-out
+  [cms-sign-simple
+   (->* [bytes? bytes? symbol? (listof bytes?) bytes? (listof symbol?)]
+         bytes?)]
+  [cms-init-signing
+   (->* [bytes? bytes? symbol? list? bytes? (listof symbol?) ]
+        box?)]
+  [cms-add-signing-cert
+   (->* [box? bytes?]
+        integer?)]))
+  
+
  ;;[cms-sign-sure            (->m bytes? bytes? symbol? (listof bytes?) bytes? (listof symbol?) bytes?)]
 (define (cms-sign-simple cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags [factory/s (crypto-factories)])
   (with-crypto-entry 'cms-sign-simple
@@ -722,7 +735,7 @@
     (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
           (let ([cms-sign (send factory -get-cms-sign)])
             (and cms-sign (send cms-sign get-cms-content-info/DER  box-content-info))))
-        (crypto-error "unable to add a signer"))))
+        (crypto-error "unable to get content info as DER binary"))))
     ;;[cms-sign-receipt         (->m bytes? list? bytes? symbol? (listof symbol?) any/c)]
     ;;[cms-add-recipient-cert   (->m box? bytes? (listof symbol?) any/c)]
     ;;[cms-encrypt              (->m list? bytes? string? (listof symbol?) box?)]

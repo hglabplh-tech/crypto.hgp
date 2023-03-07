@@ -321,6 +321,10 @@
 (define-crypto SMIME_write_CMS (_fun _BIO _CMS_ContentInfo _BIO/null _int -> _int)
   #:wrap (err-wrap 'SMIME_write_CMS))
 
+;;int i2d_CMS_bio_stream(BIO *out, CMS_ContentInfo *cms, BIO *data, int flags);
+(define-crypto i2d_CMS_bio_stream (_fun _BIO _CMS_ContentInfo _BIO/null _int -> _int)
+  #:wrap (err-wrap 'i2d_CMS_bio_stream))
+
 ;;ASN1_OCTET_STRING *CMS_SignerInfo_get0_signature(CMS_SignerInfo *si);
 
 (define-crypto CMS_SignerInfo_get0_signature (_fun _CMS_SignerInfo -> (octet : _pointer)

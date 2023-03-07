@@ -25,6 +25,7 @@
          "error.rkt"
          "base256.rkt"
          "asn1.rkt"
+         "bytestreaming.rkt"
          "../../util/bech32.rkt")
 (provide (all-defined-out))
 
@@ -48,6 +49,7 @@
     (define/public (cms-encrypt-with-skey skey-bytes data-bytes cipher-name flags) #f)
     (define/public (smime-write-CMS box-content-info fname flags) #f)
     (define/public (smime-write-CMS-detached box-content-info fname data-bytes flags) #f)
+    (define/public (write-CMS/BER box-content-info fname flags) #f)
     
     ))
 

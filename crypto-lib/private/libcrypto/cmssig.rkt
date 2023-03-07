@@ -26,8 +26,7 @@
          "../common/common.rkt"
          "../common/cmssigbase.rkt"
          "../common/asn1.rkt"
-         "../common/error.rkt"
-         crypto/libcrypto
+         "../common/error.rkt"         
          "cmssigffi.rkt")
 (provide (all-defined-out)
          get-asn1-data)
@@ -127,11 +126,18 @@
         (write-bytes-from-membio fname bio-out)
         ))
 
+     (define/override (write-CMS/BER box-content-info fname flags)
+      (let ([bio-out (build-writeable-mem-bio)])        
+        (begin (i2d_CMS_bio_stream bio-out (unbox  box-content-info)  #f (build-attr-val-from-list
+                                                                       0 flags)))
+        (write-bytes-from-membio fname bio-out)
+        ))
+
+
     (define/override (smime-write-CMS-detached box-content-info fname data-bytes flags)
       (let ([bio-out (build-writeable-mem-bio)]
-            [bio_mem_data (BIO_new_mem_buf data-bytes (bytes-length data-bytes))])
-        ;; smime write seems not write correctly to mem bio
-        (begin (SMIME_write_CMS bio-out (unbox  box-content-info)  (build-attr-val-from-list
+            [bio_mem_data (BIO_new_mem_buf data-bytes (bytes-length data-bytes))])       
+        (begin (SMIME_write_CMS bio-out (unbox  box-content-info) bio_mem_data (build-attr-val-from-list
                                                                     0 flags)))
         (write-bytes-from-membio fname bio-out)
         ))
@@ -191,7 +197,8 @@
       (let ([content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]
             [cert-stack (cert-list-to-stack cert-stack-list)])
             
-        (begin          
+        (begin
+          (raise-cont-inf-type-error content-info sig-cinfo-type)
           (cond [(equal? (CMS_verify content-info cert-stack #f #f  (build-attr-val-from-list
                                                                      (get-cms-attr 'cms-no-signer-cert-verify) flags))  1    ) ;;CMS_NO_SIGNER_CERT_VERIFY
                  (box content-info)]
@@ -203,8 +210,10 @@
              [cert-to-select (d2i_X509_bio bio-mem-cert)]
              [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
              [bio-out (build-writeable-mem-bio)]
-             [result (begin (CMS_decrypt_set1_pkey content-info pkey cert-to-select)
-                            (CMS_decrypt content-info #f #f bio-out (build-attr-val-from-list 0
+             [result (begin
+                       (raise-cont-inf-type-error content-info encr-cinfo-type)
+                       (CMS_decrypt_set1_pkey content-info pkey cert-to-select)
+                       (CMS_decrypt content-info #f #f bio-out (build-attr-val-from-list 0
                                                                                               flags)))])            
         (write-bytes-from-membio fname bio-out)))
 
@@ -229,7 +238,7 @@
     (define/override (cms-decrypt-with-skey  contentinfo-buffer skey-bytes fname flags)
       (let* ([bio-out (build-writeable-mem-bio)]
              [content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]
-
+             [dummy (raise-cont-inf-type-error content-info symmetric-encr-cinfo-type)]
              [result (CMS_EncryptedData_decrypt content-info skey-bytes (bytes-length skey-bytes)
                                                 #f bio-out
                                                 (build-attr-val-from-list
@@ -294,8 +303,14 @@
            [buffer (make-bytes length 0)]
            [read-len (BIO_read mem-bio buffer length)])
       (cond [(>  read-len 0)
-             (list read-len buffer)]
+             (list buffer read-len)]
             [else #f]))))
+
+(define (internal-bytes-write-mem)
+   (lambda (buff-len buffer port)
+                 (write-bytes-avail buffer port 0 buff-len)))
+
+              
 
       
 

@@ -311,6 +311,10 @@
     [cms-encrypt              (->m list? bytes? string? (listof symbol?) box?)]
     [get-cms-content-info-type (->m box? string?)]
     [get-pkey-format-from-sym  (->m symbol? any/c)]
+    [cms-encrypt-with-skey     (->m bytes? bytes? string? (listof symbol?) box?)]
+    [smime-write-CMS           (->m box? string? (listof symbol?) any/c)]
+    [smime-write-CMS-detached  (->m box? string? bytes? (listof symbol?) any/c)]
+    [write-CMS/BER             (->m box? string? (listof symbol?) any/c)]
     ))
 
 (define cms-check-explore<%>
