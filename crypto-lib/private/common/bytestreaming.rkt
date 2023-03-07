@@ -61,14 +61,16 @@
       (list->bytes buffer))
     ))
 
-(define copy-stream (lambda (in-proc from out-proc)
+(define copy-stream-by-funs (lambda (in-proc source out-proc target close-proc)
   (cond [(and (procedure? in-proc)
               (procedure? out-proc)
+              (procedure? close-proc)
               (eq? (procedure-arity in-proc) 1)
-              (eq? (procedure-arity out-proc) 2))
-         (let copying ([read-values (in-proc from)])
-           (cond [(not read-values) #t]
-                 [else (out-proc (car read-values) (cadr read-values))
-                       (copying (in-proc from))]))]
+              (eq? (procedure-arity out-proc) 3)
+              (eq? (procedure-arity close-proc) 2))
+         (let copying ([read-values (in-proc source)])
+           (cond [(not read-values) (close-proc source target)#t]
+                 [else (out-proc (car read-values) (cadr read-values) target)
+                       (copying (in-proc source))]))]
         [else (error "parameters mismatch")])))
 
