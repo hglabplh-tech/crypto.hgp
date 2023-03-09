@@ -63,3 +63,39 @@
     (define/public (cms-decrypt-with-skey  contentinfo-buffer skey-bytes fname flags) #f)
     (define/public (cms-signinfo-get-first-signature box-content-info) #f)))
 
+(define cms-tools-base% 
+   (class* impl-base% (cms-tools<%>)
+     (inherit about get-spec get-factory)
+    (super-new)
+
+     (define/public (internal-bytes-read-fun) #f)
+
+     (define/public (stream-file-write)
+       (lambda (buffer buff-len port)
+                 (write-bytes-avail buffer port 0 buff-len)))
+     
+     (define/public (open-stream-file-write fname)
+       (open-output-file fname #:mode 'binary #:exists 'replace))
+
+      (define/public (open-stream-mem)
+        (new  bytes-stream%))
+     
+     (define/public (stream-write-mem)
+       (lambda (buffer buff-len stream)
+       (send stream write-bytes-range buffer 0 buff-len)))
+
+     (define/public (get-bytes-from-mem stream)
+       (send stream get-bytes))
+  
+     (define/public (close-fun proc-close-in proc-close-out)
+       (lambda (source target)
+         (cond [(not (eq? proc-close-in #f)) (proc-close-in source)])
+         (cond [(not (eq? proc-close-out #f)) (proc-close-out target)])))
+
+     (define/public (call-with-val-copy-stream proc)       
+       (call-with-values proc copy-stream-by-funs))     
+
+     (define/public (build-copy-stream in-proc source out-proc target close-proc)
+       (lambda ()         
+         (values in-proc source out-proc target close-proc)))
+     ))

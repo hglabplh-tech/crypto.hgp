@@ -21,7 +21,7 @@
   (printf "bytes read: ~a\n"(send stream read-range 5))
   (printf "bytes read: ~a\n"(send stream read-range 5))
   (send stream reset)
-  (copy-stream-by-funs (lambda (input)
+  (copy-stream-by-funs (lambda (input read-length)
                  (let ([buffer (send input read-range 5)])
                    (cond [(equal? (bytes-length buffer) 0) #f]
                          [else (list buffer (bytes-length buffer))])))

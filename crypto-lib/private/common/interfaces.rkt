@@ -17,7 +17,8 @@
 (require racket/class
          racket/contract/base
          (only-in racket/base [exact-nonnegative-integer? nat?])
-         "catalog.rkt")
+         "catalog.rkt"
+         "bytestreaming.rkt")
 (provide impl<%>
          ctx<%>
          state<%>
@@ -48,7 +49,8 @@
          kdf-impl?
 
          cms-sign<%>
-         cms-check-explore<%>)
+         cms-check-explore<%>
+         cms-tools<%>)
 
 ;; ============================================================
 ;; General Notes
@@ -324,3 +326,16 @@
     [cms-smime-decrypt (->m bytes? bytes? bytes? symbol? string? (listof symbol?) any/c)]
     [cms-decrypt-with-skey  (->m bytes? bytes? string? (listof symbol?) any/c)]
     [cms-signinfo-get-first-signature (->m box? list?)]))
+
+(define cms-tools<%>
+  (interface (impl<%>)
+    [internal-bytes-read-fun  (->m procedure?)]
+    [stream-file-write        (->m procedure?)]
+    [open-stream-file-write   (->m string? output-port?)]
+    [open-stream-mem          (->m object?)]
+    [stream-write-mem         (->m procedure?)]
+    [get-bytes-from-mem       (->m object? bytes?)]
+    [close-fun                (->m (or/c  procedure? boolean?) (or/c  procedure? boolean?) any)]
+    [call-with-val-copy-stream (->m procedure? any)]
+    [build-copy-stream         (->m procedure? any/c procedure? any/c procedure? any/c)]
+                                   ))

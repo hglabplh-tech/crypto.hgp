@@ -101,7 +101,11 @@
                                    [check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
                                    )                                       
                               (begin 
-                                (send check-impl cms-smime-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
+                                (let ([mem-bio
+                                       (send check-impl cms-smime-decrypt contentinfo-buffer
+                                             cert-bytes pkey-bytes pkey-fmt fname flags)])
+                                  (write-internal-to-file fname mem-bio )
+                                      )
                                 ))))
                     
 (define cms-decrypt-with-skey  (lambda (contentinfo-file skey-bytes out-name flags)
@@ -122,6 +126,16 @@
                                                             (list cert-bytes  ca-cert-bytes sig-cert-bytes) flags)])
                                     (send check-impl cms-signinfo-get-first-signature content-info ))
                                   )))
+
+(define (write-internal-to-file fname internal)
+  (let* ([tool% (new libcrypto-cms-tools% (factory libcrypto-factory))]
+         [port (send tool% open-stream-file-write fname)]
+         [read-fun (send tool% internal-bytes-read-fun)]
+         [write-fun (send tool% stream-file-write)]
+         [close-fun (send tool% close-fun #f close-output-port)]
+         [provider (send tool% build-copy-stream read-fun internal write-fun port close-fun)])
+    (send tool% call-with-val-copy-stream provider)
+    ))
 
 (define outage (generate-cms-from-signature-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
                                                   "data/freeware-user-key.der" 'rsa-key "pkey.rkt" 

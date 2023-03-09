@@ -126,7 +126,7 @@
         (write-bytes-from-membio fname bio-out)
         ))
 
-     (define/override (write-CMS/BER box-content-info fname flags)
+*     (define/override (write-CMS/BER box-content-info fname flags)
       (let ([bio-out (build-writeable-mem-bio)])        
         (begin (i2d_CMS_bio_stream bio-out (unbox  box-content-info)  #f (build-attr-val-from-list
                                                                        0 flags)))
@@ -232,7 +232,8 @@
                        (CMS_decrypt_set1_pkey content-info pkey cert-to-select)
                        (CMS_decrypt content-info #f #f bio-out (build-attr-val-from-list 0
                                                                                          flags)))])            
-        (write-bytes-from-membio fname bio-out)))
+        bio-out))
+        ;;(write-bytes-from-membio fname bio-out)))
             
                
     (define/override (cms-decrypt-with-skey  contentinfo-buffer skey-bytes fname flags)
@@ -250,6 +251,31 @@
       (let* ([signer-info-stack (CMS_get0_SignerInfos (unbox box-content-info))]
              [first-sig-info (sk-typed-value signer-info-stack 0 _CMS_SignerInfo)])
         (asn1-octet-members-as-list (CMS_SignerInfo_get0_signature first-sig-info))))
+    ))
+
+(define libcrypto-cms-tools%
+  (class* cms-tools-base% (cms-tools<%>)
+    (inherit-field factory)
+    (super-new (spec 'cms-tools-base))
+    
+    (define/override (internal-bytes-read-fun)
+      (lambda (mem-bio prev-read-len)        
+        (let* ([len 1024]
+               [buffer (make-bytes len 0)]
+               [read-len
+                (cond [(>= prev-read-len  len) (send this read-internal mem-bio buffer len)]
+                      [else 0])])                         
+          (cond [(> read-len  0)
+                 (list buffer read-len)]
+                [else #f]))))
+    
+    (define/public (read-internal mem-internal buffer len)
+      (call-with-exception-handler(lambda(e)
+                                    "read from internal CMS buffer failed")
+                                  (lambda () (BIO_read mem-internal buffer len))))
+    
+    (define/public (eof-bio mem-bio)
+      (BIO_eof mem-bio))
     ))
 ;; helper exports
 
@@ -297,18 +323,9 @@
         [else 1])
   )
 
-(define (internal-bytes-read-fun)
-  (lambda (mem-bio)
-    (let* ([length 1024]
-           [buffer (make-bytes length 0)]
-           [read-len (BIO_read mem-bio buffer length)])
-      (cond [(>  read-len 0)
-             (list buffer read-len)]
-            [else #f]))))
 
-(define (internal-bytes-write-mem)
-   (lambda (buff-len buffer port)
-                 (write-bytes-avail buffer port 0 buff-len)))
+
+
 
               
 
