@@ -321,12 +321,13 @@
 
 (define cms-check-explore<%>
   (interface (impl<%>)
-    [cms-sig-verify                    (->m bytes? (listof bytes?) (listof symbol?) (or/c symbol? box?))]
-    [cms-decrypt                       (->m bytes? bytes? bytes? symbol? string? (listof symbol?) any/c)]
-    [cms-smime-decrypt                 (->m bytes? bytes? bytes? symbol? string? (listof symbol?) any/c)]
-    [cms-decrypt-with-skey             (->m bytes? bytes? string? (listof symbol?) any/c)]
+    [cms-content/DER->content-info     (->m bytes? (or/c boolean? box?))]
+    [cms-content/SMIME->content-info   (->m bytes? (or/c boolean? box?))]
+    [cms-sig-verify                    (->m box? (listof bytes?) (listof symbol?) symbol?)]
+    [cms-decrypt                       (->m box? bytes? bytes? symbol? (listof symbol?) any/c)]    
+    [cms-decrypt-with-skey             (->m box? bytes? (listof symbol?) any/c)]
     [cms-signinfo-get-first-signature  (->m box? list?)]
-    [cms-signer-infos-get-signatures      (->m box? any/c)]
+    [cms-signer-infos-get-signatures   (->m box? any/c)]
     [get-signer-infos-list             (->m box? (listof box?))]
     [get-signer-certs-list             (->m box? (listof box?))]
     ))

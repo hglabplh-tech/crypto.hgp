@@ -193,60 +193,61 @@
   (class* cms-check-explore-impl-base% (cms-check-explore<%>)
     (inherit-field factory)
     (super-new (spec 'cms-check-explore))
+
+    (define/override (cms-content/DER->content-info  content-info-buffer)
+      (let ([content-info
+             (d2i_CMS_ContentInfo content-info-buffer (bytes-length content-info-buffer))])
+        (cond [(not (ptr-equal? content-info #f)) (box-immutable content-info)]
+              [else #f])))
+
+    (define/override (cms-content/SMIME->content-info content-info-buffer)
+      (let* ([smime-bio (BIO_new_mem_buf content-info-buffer
+                                         (bytes-length content-info-buffer))]
+             [content-info
+              (cond [(not (ptr-equal? smime-bio #f)) (SMIME_read_CMS smime-bio)]
+                    [else #f])])
+        (cond [(not (ptr-equal? content-info #f)) (box-immutable content-info)]
+              [else #f])))
+                      
     
-    (define/override (cms-sig-verify contentinfo-buffer cert-stack-list flags)
-      (let ([content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]
+    (define/override (cms-sig-verify box-content-info cert-stack-list flags)
+      (let ([content-info (unbox box-content-info)]
             [cert-stack (cert-list-to-stack cert-stack-list)])
             
         (begin
           (raise-cont-inf-type-error content-info sig-cinfo-type)
           (cond [(equal? (CMS_verify content-info cert-stack #f #f  (build-attr-val-from-list
                                                                      (get-cms-attr 'cms-no-signer-cert-verify) flags))  1    ) ;;CMS_NO_SIGNER_CERT_VERIFY
-                 (box content-info)]
+                 'success]
                 [else 'fail]))))
 
-    (define/override (cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
-      (let* ([content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]
-             [bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]                                             
-             [cert-to-select (d2i_X509_bio bio-mem-cert)]
-             [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
-             [bio-out (build-writeable-mem-bio)]
-             [result (begin
-                       (raise-cont-inf-type-error content-info encr-cinfo-type)
-                       (CMS_decrypt_set1_pkey content-info pkey cert-to-select)
-                       (CMS_decrypt content-info #f #f bio-out (build-attr-val-from-list 0
-                                                                                         flags)))])            
-        (write-bytes-from-membio fname bio-out)))
-
-    (define/override (cms-smime-decrypt smimecont-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
-      (let* ([smime-bio (BIO_new_mem_buf smimecont-buffer (bytes-length smimecont-buffer))]
-             [content-info
-              (cond [(not (ptr-equal? smime-bio #f)) (SMIME_read_CMS smime-bio)]
-                    [else #f])]
-             [bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]                                             
-             [cert-to-select (cond [(not (ptr-equal? bio-mem-cert #f)) (d2i_X509_bio bio-mem-cert)]
-                                   [else  #f])]
-             [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
-             [bio-out (build-writeable-mem-bio)]
-             [result (begin
-                       (raise-cont-inf-type-error content-info encr-cinfo-type)
-                       (CMS_decrypt_set1_pkey content-info pkey cert-to-select)
-                       (CMS_decrypt content-info #f #f bio-out (build-attr-val-from-list 0
-                                                                                         flags)))])            
+    (define/override (cms-decrypt box-content-info cert-bytes pkey-bytes pkey-fmt flags)
+      (let*  ([content-info (unbox box-content-info)]
+              [bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]                                             
+              [cert-to-select (d2i_X509_bio bio-mem-cert)]
+              [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))]
+              [bio-out (build-writeable-mem-bio)]
+              [result (begin
+                        (raise-cont-inf-type-error content-info encr-cinfo-type)
+                        (CMS_decrypt_set1_pkey content-info pkey cert-to-select)
+                        (CMS_decrypt content-info #f #f bio-out (build-attr-val-from-list 0
+                                                                                          flags)))])            
         bio-out))
+
+    
     ;;(write-bytes-from-membio fname bio-out)))
             
                
-    (define/override (cms-decrypt-with-skey  contentinfo-buffer skey-bytes fname flags)
+    (define/override (cms-decrypt-with-skey  box-content-info skey-bytes flags)
       (let* ([bio-out (build-writeable-mem-bio)]
-             [content-info (d2i_CMS_ContentInfo contentinfo-buffer (bytes-length contentinfo-buffer))]
+             [content-info (unbox box-content-info)]
              [dummy (raise-cont-inf-type-error content-info symmetric-encr-cinfo-type)]
              [result (CMS_EncryptedData_decrypt content-info skey-bytes (bytes-length skey-bytes)
                                                 #f bio-out
                                                 (build-attr-val-from-list
                                                  0 flags))])
         
-        (write-bytes-from-membio fname bio-out)))
+        bio-out))
     
     (define/override (cms-signinfo-get-first-signature box-content-info)
       (let* ([signer-info-stack (CMS_get0_SignerInfos (unbox box-content-info))]

@@ -69,12 +69,12 @@
                                                  [content-info (send sign-impl cms-encrypt cert-stack-list data-bytes cipher-name flags)])
                                             (begin ;;(display (send sign-impl cms-add-recipient-cert content-info sig-cert-bytes '()))
                                               
-                                                   (displayln (send sign-impl cms-sign-finalize content-info data-bytes '()))
-                                                   (printf "encryption content-info-type: ~a\n" (send sign-impl get-cms-content-info-type content-info))
-                                                   (let ([cms-sig-der (send sign-impl get-cms-content-info/DER content-info)]                                                    )
-                                                     (begin (write-bytes-to-file (car out-names) cms-sig-der)
-                                                            (send sign-impl  write-CMS/BER content-info (cadr out-names) '())
-                                                            )))
+                                              (displayln (send sign-impl cms-sign-finalize content-info data-bytes '()))
+                                              (printf "encryption content-info-type: ~a\n" (send sign-impl get-cms-content-info-type content-info))
+                                              (let ([cms-sig-der (send sign-impl get-cms-content-info/DER content-info)]                                                    )
+                                                (begin (write-bytes-to-file (car out-names) cms-sig-der)
+                                                       (send sign-impl  write-CMS/BER content-info (cadr out-names) '())
+                                                       )))
                                             )))
 
 (define generate-cms-encrypt-skey-files (lambda(skey-bytes data-fname out-name
@@ -90,33 +90,50 @@
                                                 )))))
                                    
 
-(define cms-decrypt (lambda(cert-fname pkey-fname pkey-fmt contentinfo-file fname flags )
+(define cms-decrypt (lambda(cert-fname pkey-fname pkey-fmt content-info-file fname flags )
                       (let* ([cert-bytes (read-bytes-from-file cert-fname)]
-                             [contentinfo-buffer (read-bytes-from-file contentinfo-file)]
+                             [content-info-bytes (read-bytes-from-file content-info-file)]
                              [pkey-bytes (read-bytes-from-file pkey-fname)]                        
                              [check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
-                             )                                       
+                             [box-content-info (send check-impl
+                                                     cms-content/DER->content-info content-info-bytes)]
+                             )                                      
 
-                        (send check-impl cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags))))
+                        (let ([mem-bio
+                               (send check-impl cms-decrypt box-content-info
+                                     cert-bytes pkey-bytes pkey-fmt flags)])
+                          (write-internal-to-file fname mem-bio )
+                          )
+                        )))
 
-(define cms-smime-decrypt (lambda(cert-fname pkey-fname pkey-fmt contentinfo-file fname flags )
+(define cms-smime-decrypt (lambda(cert-fname pkey-fname pkey-fmt content-info-file fname flags )
                             (let* ([cert-bytes (read-bytes-from-file cert-fname)]
-                                   [contentinfo-buffer (read-bytes-from-file contentinfo-file)]
-                                   [pkey-bytes (read-bytes-from-file pkey-fname)]                        
+                                   [content-info-bytes (read-bytes-from-file content-info-file)]
+                                   [pkey-bytes (read-bytes-from-file pkey-fname)]
                                    [check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
-                                   )                                       
-                              (begin 
+                                   [box-content-info (send check-impl
+                                                           cms-content/SMIME->content-info content-info-bytes)]
+                                   )
                                 (let ([mem-bio
-                                       (send check-impl cms-smime-decrypt contentinfo-buffer
-                                             cert-bytes pkey-bytes pkey-fmt fname flags)])
+                                       (send check-impl cms-decrypt box-content-info
+                                             cert-bytes pkey-bytes pkey-fmt flags)])
                                   (write-internal-to-file fname mem-bio )
-                                      )
-                                ))))
+                                  )
+                                )))
                     
-(define cms-decrypt-with-skey  (lambda (contentinfo-file skey-bytes out-name flags)
+(define cms-decrypt-with-skey  (lambda (content-info-file skey-bytes fname flags)
                                  (let* ([check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
-                                        [contentinfo-buffer (read-bytes-from-file contentinfo-file)])
-                                   (send check-impl cms-decrypt-with-skey  contentinfo-buffer skey-bytes out-name flags))))
+                                        [content-info-bytes (read-bytes-from-file content-info-file)]
+                                        [box-content-info (send check-impl
+                                                                cms-content/DER->content-info content-info-bytes)])
+                                   (send check-impl cms-decrypt-with-skey box-content-info skey-bytes flags)
+                                      (let ([mem-bio
+                               (send check-impl
+                                     cms-decrypt-with-skey
+                                     box-content-info skey-bytes flags)])                                 
+                          (write-internal-to-file fname mem-bio )
+                          )
+                        )))
                                  
 
 (define verify-cms-from-files (lambda(cert-fname ca-cert-fname sig-cert-fname signature-name flags)
@@ -125,13 +142,16 @@
                                        [sig-cert-bytes (read-bytes-from-file sig-cert-fname)]
                                        [content-info-bytes (read-bytes-from-file signature-name)]
                                        [check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
+                                       [box-content-info (send check-impl
+                                                               cms-content/DER->content-info content-info-bytes)]                                       
                                        [cert-stack-list (list cert-bytes ca-cert-bytes)])
                                   
-                                  (let ([content-info (send check-impl cms-sig-verify content-info-bytes
-                                                            (list cert-bytes  ca-cert-bytes sig-cert-bytes) flags)])
-                                    (displayln (send check-impl cms-signer-infos-get-signatures content-info))
-                                    (display (send check-impl get-signer-certs-list content-info))
-                                    (send check-impl cms-signinfo-get-first-signature content-info ))
+                                  (let ([result (send check-impl cms-sig-verify box-content-info
+                                                      (list cert-bytes sig-cert-bytes ca-cert-bytes) flags)])
+                                    (printf "verification result: ~a" result)
+                                    (displayln (send check-impl cms-signer-infos-get-signatures box-content-info))                                    
+                                    (displayln (send check-impl get-signer-certs-list box-content-info))
+                                    (send check-impl cms-signinfo-get-first-signature box-content-info ))
                                   )))
 
 (define (write-internal-to-file fname internal)
