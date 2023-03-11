@@ -148,7 +148,7 @@
                                   
                                   (let ([result (send check-impl cms-sig-verify box-content-info
                                                       (list cert-bytes sig-cert-bytes ca-cert-bytes) flags)])
-                                    (printf "verification result: ~a" result)
+                                    (printf "verification result: ~a\n" result)
                                     (displayln (send check-impl cms-signer-infos-get-signatures box-content-info))                                    
                                     (displayln (send check-impl get-signer-certs-list box-content-info))
                                     (send check-impl cms-signinfo-get-first-signature box-content-info ))
@@ -160,8 +160,18 @@
          [read-fun (send tool% internal-bytes-read-fun)]
          [write-fun (send tool% stream-file-write)]
          [close-fun (send tool% close-fun #f close-output-port)]
-         [provider (send tool% build-copy-stream read-fun internal write-fun port close-fun)])
-    (send tool% call-with-val-copy-stream provider)
+         [copy-stream (send tool% build-copy-stream read-fun internal write-fun port close-fun)])
+    (send tool% call-with-val-copy-stream copy-stream)
+    ))
+
+(define (write-internal-to-mem internal)
+  (let* ([tool% (new libcrypto-cms-tools% (factory libcrypto-factory))]
+         [mem-stream (send tool% open-stream-mem)]
+         [read-fun (send tool% internal-bytes-read-fun)]
+         [write-fun (send tool% stream-write-mem)]
+         [close-fun (send tool% close-fun #f #f)]
+         [copy-stream (send tool% build-copy-stream read-fun internal write-fun mem-stream close-fun)])
+    (send tool% call-with-val-copy-streamcopy-stream)
     ))
 
 (define outage (generate-cms-from-signature-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
