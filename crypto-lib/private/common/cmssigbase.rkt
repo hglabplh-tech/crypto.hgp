@@ -36,7 +36,7 @@
     (define/public (cms-sign-sure cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags) #f)
     (define/public (cms-init-signing cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags) #f)
     (define/public (cms-add-cert box-content-info cert-bytes) #f)
-    (define/public (cms-signerinfo-sign) #f)
+    (define/public (cms-signerinfo-sign box-signer-info) #f)
     (define/public (cms-add-signer box-content-info cert-bytes pkey-bytes digest-name flags) #f)
     (define/public (cms-sign-finalize box-content-info data-bytes flags) #f)
     (define/public (get-cms-content-info box-content-info ) #f)
@@ -61,7 +61,11 @@
     (define/public (cms-decrypt contentinfo-buffer cert-bytes pkey-bytes pkey-fmt fname flags) #f)
     (define/public (cms-smime-decrypt smimecont-buffer cert-bytes pkey-bytes pkey-fmt fname flags) #f)
     (define/public (cms-decrypt-with-skey  contentinfo-buffer skey-bytes fname flags) #f)
-    (define/public (cms-signinfo-get-first-signature box-content-info) #f)))
+    (define/public (cms-signinfo-get-first-signature box-content-info) #f)
+    (define/public (cms-signer-infos-get-signatures box-content-info) #f)
+    (define/public (get-signer-infos-list box-content-info) #f)
+    (define/public (get-signer-certs-list box-content-info) #f)
+    ))
 
 (define cms-tools-base% 
    (class* impl-base% (cms-tools<%>)

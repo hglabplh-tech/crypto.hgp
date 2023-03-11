@@ -304,11 +304,11 @@
     [cms-sign-sure            (->m bytes? bytes? symbol? (listof bytes?) bytes? (listof symbol?) bytes?)]
     [cms-init-signing         (->m bytes? bytes? symbol? list? bytes? (listof symbol?) box?)]
     [cms-add-cert             (->m box? bytes? integer?)]
-    [cms-signerinfo-sign      (->m integer?)]
+    [cms-signerinfo-sign      (->m box? integer?)]
     [cms-add-signer           (->m box? bytes? bytes? symbol? string? (listof symbol?) any/c)]
     [cms-sign-finalize        (->m box? bytes? (listof symbol?) integer?)]
     [get-cms-content-info/DER (->m box? bytes?)]
-    [cms-sign-receipt         (->m bytes? list? bytes? symbol? (listof symbol?) any/c)]
+    [cms-sign-receipt         (->m box? bytes? list? bytes? symbol? (listof symbol?) any/c)]
     [cms-add-recipient-cert   (->m box? bytes? (listof symbol?) any/c)]
     [cms-encrypt              (->m list? bytes? string? (listof symbol?) box?)]
     [get-cms-content-info-type (->m box? string?)]
@@ -321,11 +321,15 @@
 
 (define cms-check-explore<%>
   (interface (impl<%>)
-    [cms-sig-verify (->m bytes? (listof bytes?) (listof symbol?) any/c)]
-    [cms-decrypt    (->m bytes? bytes? bytes? symbol? string? (listof symbol?) any/c)]
-    [cms-smime-decrypt (->m bytes? bytes? bytes? symbol? string? (listof symbol?) any/c)]
-    [cms-decrypt-with-skey  (->m bytes? bytes? string? (listof symbol?) any/c)]
-    [cms-signinfo-get-first-signature (->m box? list?)]))
+    [cms-sig-verify                    (->m bytes? (listof bytes?) (listof symbol?) (or/c symbol? box?))]
+    [cms-decrypt                       (->m bytes? bytes? bytes? symbol? string? (listof symbol?) any/c)]
+    [cms-smime-decrypt                 (->m bytes? bytes? bytes? symbol? string? (listof symbol?) any/c)]
+    [cms-decrypt-with-skey             (->m bytes? bytes? string? (listof symbol?) any/c)]
+    [cms-signinfo-get-first-signature  (->m box? list?)]
+    [cms-signer-infos-get-signatures      (->m box? any/c)]
+    [get-signer-infos-list             (->m box? (listof box?))]
+    [get-signer-certs-list             (->m box? (listof box?))]
+    ))
 
 (define cms-tools<%>
   (interface (impl<%>)
@@ -338,4 +342,5 @@
     [close-fun                (->m (or/c  procedure? boolean?) (or/c  procedure? boolean?) any)]
     [call-with-val-copy-stream (->m procedure? any)]
     [build-copy-stream         (->m procedure? any/c procedure? any/c procedure? any/c)]
+    
                                    ))

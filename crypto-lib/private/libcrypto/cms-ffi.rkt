@@ -38,17 +38,22 @@
                                                        [sig-cert-bytes (read-bytes-from-file sig-cert-fname)]
                                                        [sig-pkey-bytes (read-bytes-from-file sig-pkey-fname)]
                                                        [sign-impl (new libcrypto-cms-sign%  (factory libcrypto-factory))]
+                                                       [check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
                                                        [content-info (send sign-impl cms-init-signing cert-bytes pkey-bytes pkey-fmt
                                                                            '()
                                                                            data-bytes flags)])
                                                   (begin (display (send sign-impl cms-add-cert content-info ca-cert-bytes))                                              
-                                                         (displayln (send sign-impl cms-add-signer content-info sig-cert-bytes sig-pkey-bytes pkey-fmt "SHA512" sig-flags))
-                                                         ;;(display (send sign-impl cms-sign-receipt sig-cert-bytes (list)  sig-pkey-bytes pkey-fmt flags))
+                                                         (displayln (send sign-impl cms-add-signer content-info
+                                                                          sig-cert-bytes sig-pkey-bytes pkey-fmt "SHA512" sig-flags))                                                         
+                                                         ;;(display (send sign-impl cms-sign-receipt content-info sig-cert-bytes (list)  sig-pkey-bytes pkey-fmt flags))
                                                          (displayln (send sign-impl cms-sign-finalize content-info data-bytes '()))
-                                                         (printf "signature content-info-type: ~a\n" (send sign-impl get-cms-content-info-type content-info))
+                                                         (printf "signature content-info-type: ~a\n" (send sign-impl
+                                                                                                           get-cms-content-info-type content-info))
+                                                         
                                                          (let ([cms-sig-der (send sign-impl get-cms-content-info/DER content-info )]                                                    )
                                                            (begin (write-bytes-to-file (car out-names) cms-sig-der)
                                                                   (send sign-impl  smime-write-CMS content-info (cadr out-names) '())
+                                                                  
                                                                   ))))
                                                 ))
 
@@ -124,6 +129,8 @@
                                   
                                   (let ([content-info (send check-impl cms-sig-verify content-info-bytes
                                                             (list cert-bytes  ca-cert-bytes sig-cert-bytes) flags)])
+                                    (displayln (send check-impl cms-signer-infos-get-signatures content-info))
+                                    (display (send check-impl get-signer-certs-list content-info))
                                     (send check-impl cms-signinfo-get-first-signature content-info ))
                                   )))
 

@@ -183,27 +183,27 @@
                                     (let ([p (malloc _byte (bytes-length buffer) 'atomic)])
                                       (memcpy p buffer (bytes-length buffer) _byte) p)))
 ;; try to define stack
-(define-cpointer-type _STACK)
+(define-cpointer-type _OPENSSL_STACK)
 
-(define-crypto OPENSSL_sk_free(_fun _STACK -> _void)
+(define-crypto OPENSSL_sk_free(_fun _OPENSSL_STACK -> _void)
    #:wrap (deallocator))
 
-(define-crypto OPENSSL_sk_new_null (_fun -> _STACK)
+(define-crypto OPENSSL_sk_new_null (_fun -> _OPENSSL_STACK)
   #:wrap (compose (allocator OPENSSL_sk_free)
                   (err-wrap/pointer 'OPENSSL_sk_new_null)))
 
   
  
-(define-crypto OPENSSL_sk_push(_fun _STACK  _pointer -> _int)
+(define-crypto OPENSSL_sk_push(_fun _OPENSSL_STACK  _pointer -> _int)
    #:wrap (err-wrap 'OPENSSL_sk_push))
 
-(define-crypto OPENSSL_sk_pop(_fun _STACK -> _pointer)
+(define-crypto OPENSSL_sk_pop(_fun _OPENSSL_STACK -> _pointer)
    #:wrap (err-wrap/pointer 'OPENSSL_sk_pop))
 
-(define-crypto OPENSSL_sk_num(_fun _STACK -> _int)
+(define-crypto OPENSSL_sk_num(_fun _OPENSSL_STACK -> _int)
    #:wrap (err-wrap 'OPENSSL_sk_num))
 
-(define-crypto OPENSSL_sk_value(_fun _STACK  _int -> _pointer)
+(define-crypto OPENSSL_sk_value(_fun _OPENSSL_STACK  _int -> _pointer)
    #:wrap (err-wrap/pointer 'OPENSSL_sk_value))
 
 
@@ -234,7 +234,7 @@
 ;;int i2d_CMS_ContentInfo(CMS_ContentInfo *a, unsigned char **pp);
 
 (define-crypto CMS_sign (_fun
-                _X509 _EVP_PKEY _STACK/null _BIO _uint -> _CMS_ContentInfo/null)
+                _X509 _EVP_PKEY _OPENSSL_STACK/null _BIO _uint -> _CMS_ContentInfo/null)
                 #:wrap (compose (allocator CMS_ContentInfo_free) (err-wrap/pointer 'CMS_sign)))
 
 ;;int CMS_final(CMS_ContentInfo *cms, BIO *data, BIO *dcont, unsigned int flags);
@@ -262,7 +262,7 @@
 ;;int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs, X509_STORE *store,
 ;;               BIO *indata, BIO *out, unsigned int flags);
 
-(define-crypto CMS_verify(_fun _CMS_ContentInfo _STACK/null (_pointer = #f)
+(define-crypto CMS_verify(_fun _CMS_ContentInfo _OPENSSL_STACK/null (_pointer = #f)
                _BIO/null _BIO/null _uint -> _int)
   #:wrap (err-wrap 'CMS_verify))
 
@@ -270,20 +270,25 @@
 
 ;;STACK_OF(CMS_SignerInfo) *CMS_get0_SignerInfos(CMS_ContentInfo *cms);
 
-(define-crypto CMS_get0_SignerInfos(_fun _CMS_ContentInfo -> _STACK/null)
+(define-crypto CMS_get0_SignerInfos(_fun _CMS_ContentInfo -> _OPENSSL_STACK)
   #:wrap (err-wrap/pointer 'CMS_get0_SignerInfos))
+
+;;STACK_OF(X509) *CMS_get0_signers(CMS_ContentInfo *cms);
+(define-crypto CMS_get0_signers(_fun _CMS_ContentInfo -> _OPENSSL_STACK)
+  #:wrap (err-wrap/pointer 'CMS_get0_signers))
+
 
 ;; CMS_ContentInfo *CMS_sign_receipt(CMS_SignerInfo *si, X509 *signcert,
 ;;                                  EVP_PKEY *pkey, STACK_OF(X509) *certs,
 ;;                                  unsigned int flags);
 
-(define-crypto CMS_sign_receipt(_fun _CMS_SignerInfo _X509 _EVP_PKEY _STACK/null _int -> _CMS_ContentInfo/null)
+(define-crypto CMS_sign_receipt(_fun _CMS_SignerInfo _X509 _EVP_PKEY _OPENSSL_STACK/null _int -> _CMS_ContentInfo/null)
     #:wrap (err-wrap/pointer 'CMS_sign_receipt))
 
 ;;CMS_ContentInfo *CMS_encrypt(STACK_OF(X509) *certs, BIO *in,
   ;;                           const EVP_CIPHER *cipher, unsigned int flags);                          
 
-(define-crypto CMS_encrypt(_fun _STACK _BIO _EVP_CIPHER _int -> _CMS_ContentInfo/null)
+(define-crypto CMS_encrypt(_fun _OPENSSL_STACK _BIO _EVP_CIPHER _int -> _CMS_ContentInfo/null)
   #:wrap (compose (allocator CMS_ContentInfo_free) (err-wrap/pointer 'CMS_encrypt)))
 
 

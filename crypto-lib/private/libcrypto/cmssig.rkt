@@ -126,24 +126,24 @@
         (write-bytes-from-membio fname bio-out)
         ))
 
-*     (define/override (write-CMS/BER box-content-info fname flags)
-      (let ([bio-out (build-writeable-mem-bio)])        
-        (begin (i2d_CMS_bio_stream bio-out (unbox  box-content-info)  #f (build-attr-val-from-list
-                                                                       0 flags)))
-        (write-bytes-from-membio fname bio-out)
-        ))
+    *     (define/override (write-CMS/BER box-content-info fname flags)
+            (let ([bio-out (build-writeable-mem-bio)])        
+              (begin (i2d_CMS_bio_stream bio-out (unbox  box-content-info)  #f (build-attr-val-from-list
+                                                                                0 flags)))
+              (write-bytes-from-membio fname bio-out)
+              ))
 
 
     (define/override (smime-write-CMS-detached box-content-info fname data-bytes flags)
       (let ([bio-out (build-writeable-mem-bio)]
             [bio_mem_data (BIO_new_mem_buf data-bytes (bytes-length data-bytes))])       
         (begin (SMIME_write_CMS bio-out (unbox  box-content-info) bio_mem_data (build-attr-val-from-list
-                                                                    0 flags)))
+                                                                                0 flags)))
         (write-bytes-from-membio fname bio-out)
         ))
     
-    (define/override (cms-signerinfo-sign)
-      (CMS_SignerInfo_sign (get-field signer-info-ptr this)))
+    (define/override (cms-signerinfo-sign signer-info)
+      (CMS_SignerInfo_sign (unbox signer-info)))
     
     (define/override (cms-sign-finalize box-content-info data-bytes flags)
       (let* ([data-len (bytes-length data-bytes)]                                                                                          
@@ -153,14 +153,14 @@
                                                                (get-cms-attr 'cms-partial) flags))
           )))    
 
-    (define/override (cms-sign-receipt cert-bytes cert-stack-list pkey-bytes pkey-fmt flags)
-      (let* ([signer-info (get-first-signer-info)]
+    (define/override (cms-sign-receipt  box-content-info cert-bytes cert-stack-list pkey-bytes pkey-fmt flags)
+      (let* ([signer-info (get-first-signer-info box-content-info)]
              [bio-mem-cert (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]
              [cert-to-sign (d2i_X509_bio bio-mem-cert)]
              [cert-stack (cert-list-to-stack cert-stack-list)]
              [pkey (d2i_PrivateKey (get-pkey-format-id pkey-fmt) pkey-bytes (bytes-length pkey-bytes))])
-        (CMS_sign_receipt signer-info cert-to-sign pkey cert-stack (build-attr-val-from-list
-                                                                    0 flags))
+        (CMS_sign_receipt (unbox signer-info) cert-to-sign pkey cert-stack (build-attr-val-from-list
+                                                                            0 flags))
         ))
 
     (define/override (get-cms-content-info box-content-info )
@@ -180,10 +180,11 @@
         (cond [(not (eq? (OPENSSL_sk_num stack) 0))
                (let ([sig-info (sk-typed-value stack 0 _CMS_SignerInfo)])
                
-                 sig-info
+                 (box-immutable sig-info)
                  )])
         ))
-    
+
+   
     
     ))
 
@@ -214,7 +215,7 @@
                        (raise-cont-inf-type-error content-info encr-cinfo-type)
                        (CMS_decrypt_set1_pkey content-info pkey cert-to-select)
                        (CMS_decrypt content-info #f #f bio-out (build-attr-val-from-list 0
-                                                                                              flags)))])            
+                                                                                         flags)))])            
         (write-bytes-from-membio fname bio-out)))
 
     (define/override (cms-smime-decrypt smimecont-buffer cert-bytes pkey-bytes pkey-fmt fname flags)
@@ -233,7 +234,7 @@
                        (CMS_decrypt content-info #f #f bio-out (build-attr-val-from-list 0
                                                                                          flags)))])            
         bio-out))
-        ;;(write-bytes-from-membio fname bio-out)))
+    ;;(write-bytes-from-membio fname bio-out)))
             
                
     (define/override (cms-decrypt-with-skey  contentinfo-buffer skey-bytes fname flags)
@@ -251,6 +252,55 @@
       (let* ([signer-info-stack (CMS_get0_SignerInfos (unbox box-content-info))]
              [first-sig-info (sk-typed-value signer-info-stack 0 _CMS_SignerInfo)])
         (asn1-octet-members-as-list (CMS_SignerInfo_get0_signature first-sig-info))))
+
+    (define/override (cms-signer-infos-get-signatures box-content-info)
+      (let* ([sig-infos-list (get-signer-infos-list box-content-info)])
+        (map
+         (lambda (box-sign-info)(asn1-octet-members-as-list
+                                 (CMS_SignerInfo_get0_signature (unbox box-sign-info))))
+         sig-infos-list)
+        ))
+
+    (define/override (get-signer-infos-list box-content-info) 
+      (let* ([stack (CMS_get0_SignerInfos (unbox box-content-info))]
+             [sk-size (OPENSSL_sk_num stack)])
+        (get-stack-elements-list stack _CMS_SignerInfo)))
+
+    (define/override (get-signer-certs-list box-content-info) 
+      (let* ([stack (CMS_get0_signers (unbox box-content-info))])             
+        (get-stack-elements-list stack _X509)))
+    
+
+    (define/private (get-stack-elements-list stack type)
+      (let* ([sk-size (OPENSSL_sk_num stack)]
+             [size-counter (- sk-size 1)])
+        
+        (printf "stack size: ~a"  sk-size) 
+        (cond [(not (eq? sk-size 0))                    
+               (let elements-to-list  ([intern-size size-counter]
+                                       [complete-list '()]
+                                       [element-info-list (list (box-immutable
+                                                                 (sk-typed-value stack size-counter type)))])
+                 
+                 (cond [(>= intern-size 0) ;; may be transfer to tail-recursion
+                        (elements-to-list
+                         (- intern-size 1)
+                         (append complete-list element-info-list) 
+                         (list (box-immutable
+                                (sk-typed-value stack
+                                                (cond [(>= (- intern-size 1) 0) (- intern-size 1)]
+                                                      [else 0])
+                                                type)))                 
+                         )
+
+                        ]
+                       [else complete-list]
+                       )
+                 )
+               ])
+        )
+      )
+    
     ))
 
 (define libcrypto-cms-tools%
@@ -392,19 +442,19 @@
 (define (build-attr-val-from-list start-val sym-list)
   (list-of-num->ior-val start-val (get-cms-attrs-from-list sym-list)))
              
-;; build up a internal stack fom a list
-(define (cert-list-to-stack-internal stack cert-list)
-  (cond [(not (null? cert-list))
-         (let* ([cert-bytes (car cert-list)]
-                [bio_mem_x509 (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]
-                [x509Cert (d2i_X509_bio bio_mem_x509)]
-                [size (OPENSSL_sk_push stack x509Cert)])               
-           (cert-list-to-stack-internal stack (cdr cert-list)))]
-        [else stack])
-  )
-;; public caller for definition above
+
+;; build up a libcrypto stack fom a list
 (define (cert-list-to-stack cert-list)
-  (cert-list-to-stack-internal (OPENSSL_sk_new_null) cert-list))
+  (let ([stack (OPENSSL_sk_new_null)])
+    (let cert-list-to-stack-internal
+      ([cert-list-internal cert-list])
+      (cond [(not (null? cert-list-internal))
+             (let* ([cert-bytes (car cert-list-internal)]
+                    [bio_mem_x509 (BIO_new_mem_buf cert-bytes (bytes-length cert-bytes))]
+                    [x509Cert (d2i_X509_bio bio_mem_x509)]
+                    [size (OPENSSL_sk_push stack x509Cert)])               
+               (cert-list-to-stack-internal (cdr cert-list-internal)))]
+            [else stack]))))
 
 (define get-symkey
   (lambda(cipher-name)
