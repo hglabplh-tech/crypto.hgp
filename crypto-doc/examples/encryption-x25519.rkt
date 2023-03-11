@@ -1,7 +1,7 @@
 #lang racket/base
-(require crypto crypto/sodium racket/match)
+(require crypto crypto/libcrypto racket/match)
 
-(crypto-factories sodium-factory)
+(crypto-factories libcrypto-factory)
 
 ;; In this example, Bob wants to send an encrypted message to Alice.
 
@@ -17,6 +17,7 @@
 ;; Step 1: Alice generates private key and publishes public key.
 
 ;; Alice:
+
 (define alice:privkey (generate-private-key 'ecx '((curve x25519))))
 
 ;; See also key-agreement-x25519.rkt for comments on public key
