@@ -317,6 +317,7 @@
     [smime-write-CMS           (->m box? string? (listof symbol?) any/c)]
     [smime-write-CMS-detached  (->m box? string? bytes? (listof symbol?) any/c)]
     [write-CMS/BER             (->m box? string? (listof symbol?) any/c)]
+    [get-symmetric-key         (->m string? bytes?)]
     ))
 
 (define cms-check-explore<%>

@@ -50,7 +50,7 @@
     (define/public (smime-write-CMS box-content-info fname flags) #f)
     (define/public (smime-write-CMS-detached box-content-info fname data-bytes flags) #f)
     (define/public (write-CMS/BER box-content-info fname flags) #f)
-    
+    (define/public (get-symmetric-key cipher-name) #f)
     ))
 
 (define cms-check-explore-impl-base%

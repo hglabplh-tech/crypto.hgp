@@ -173,7 +173,12 @@
       (i2d i2d_CMS_ContentInfo (unbox box-content-info)))
 
     (define/override (get-pkey-format-from-sym pkey-fmt)
-      (get-pkey-format-id pkey-fmt))    
+      (get-pkey-format-id pkey-fmt))
+    
+    (define/override (get-symmetric-key cipher-name)  
+      (let* ([evp-cipher (EVP_get_cipherbyname cipher-name)]
+             [key-len (EVP_CIPHER_key_length evp-cipher)])
+        (crypto-random-bytes key-len)))
     
     (define/private (get-first-signer-info box-content-info)
       (let ([stack (CMS_get0_SignerInfos (unbox box-content-info))])
@@ -279,7 +284,7 @@
     
 
     (define/private (get-stack-elements-list stack type)
-     (stack-content->list stack type))
+      (stack-content->list stack type))
       
     
     ))

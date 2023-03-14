@@ -153,6 +153,9 @@
 
     (define/override (-get-cms-check-explore)
       (new libcrypto-cms-check-explore% (factory this)))
+
+    (define/override (-get-cms-tools)
+      (new libcrypto-cms-tools% (factory this)))
         ;;-----------
 
     (define/override (info key)

@@ -682,30 +682,73 @@
  (contract-out
   [cms-sign-simple
    (->* [bytes? bytes? symbol? (listof bytes?) bytes? (listof symbol?)]
-         bytes?)]
+        bytes?)]
   [cms-init-signing
    (->* [bytes? bytes? symbol? list? bytes? (listof symbol?) ]
         box?)]
   [cms-add-signing-cert
    (->* [box? bytes?]
-        integer?)]))
+        integer?)]
+  [cms-signerinfo-sign
+   (->* [box?]
+        integer?)]
+  [cms-add-signer
+   (->* [box? bytes? bytes? symbol? string? (listof symbol?)]
+        any/c)]
+  [cms-sign-finalize
+   (->* [box? bytes? (listof symbol?)]
+        integer?)]
+  [get-cms-content-info/DER
+   (->* [box?]
+        bytes?)]
+  [cms-sign-receipt
+   (->* [box? bytes? list? bytes? symbol? (listof symbol?)]
+        any/c)]
+  [cms-add-recipient-cert
+   (->* [box? bytes? (listof symbol?)]
+        any/c)]
+  [cms-encrypt
+   (->* [list? bytes? string? (listof symbol?)]
+        box?)]
+  [get-cms-content-info-type
+   (->* [box?]
+        string?)]
+  [get-pkey-format-from-sym
+   (->* [symbol?]
+        any/c)]
+  [cms-encrypt-with-skey
+   (->* [bytes? bytes? string? (listof symbol?)]
+        box?)]
+  [smime-write-CMS
+   (->* [box? string? (listof symbol?)]
+        any/c)]
+  [smime-write-CMS-detached
+   (->* [box? string? bytes? (listof symbol?)]
+        any/c)]
+  [write-CMS/BER
+   (->* [box? string? (listof symbol?)]
+        any/c)]
+  [get-symmetric-key
+   (->* [string?]
+        bytes?)]
+  ))
   
 
- ;;[cms-sign-sure            (->m bytes? bytes? symbol? (listof bytes?) bytes? (listof symbol?) bytes?)]
+;;[cms-sign-sure            (->m bytes? bytes? symbol? (listof bytes?) bytes? (listof symbol?) bytes?)]
 (define (cms-sign-simple cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags [factory/s (crypto-factories)])
   (with-crypto-entry 'cms-sign-simple
     (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
           (let ([cms-sign (send factory -get-cms-sign)])
             (and cms-sign (send cms-sign cms-sign-sure cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags))))
         (crypto-error "unable to sign data"))))
-   ;; [cms-init-signing         (->m bytes? bytes? symbol? list? bytes? (listof symbol?) box?)]
+;; [cms-init-signing         (->m bytes? bytes? symbol? list? bytes? (listof symbol?) box?)]
 (define (cms-init-signing cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags [factory/s (crypto-factories)])
   (with-crypto-entry 'cms-init-signing
     (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
           (let ([cms-sign (send factory -get-cms-sign)])
             (and cms-sign (send cms-sign cms-init-signing cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags))))
         (crypto-error "unable to initialize signing data"))))
-    ;;[cms-add-cert             (->m box? bytes? integer?)]
+;;[cms-add-cert             (->m box? bytes? integer?)]
 (define (cms-add-signing-cert box-content-info cert-bytes [factory/s (crypto-factories)])
   (with-crypto-entry 'cms-add-signing-cert
     (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
@@ -713,8 +756,15 @@
             (and cms-sign (send cms-sign cms-add-cert box-content-info cert-bytes))))
         (crypto-error "unable to add a signing certificate"))))
 
-    ;;[cms-signerinfo-sign      (->m integer?)]
-    ;;[cms-add-signer           (->m box? bytes? bytes? symbol? string? (listof symbol?) any/c)]
+;;[cms-signerinfo-sign      (->m box? integer?)]
+(define (cms-signerinfo-sign  box-content-info [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-add-signing-cert
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign cms-add-cert box-content-info))))
+        (crypto-error "unable to sign signerinfo"))))
+
+;;[cms-add-signer           (->m box? bytes? bytes? symbol? string? (listof symbol?) any/c)]
 (define (cms-add-signer  box-content-info cert-bytes pkey-bytes digest-name flags [factory/s (crypto-factories)])
   (with-crypto-entry 'cms-add-signer
     (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
@@ -722,25 +772,96 @@
             (and cms-sign (send cms-sign cms-add-signer  box-content-info cert-bytes pkey-bytes digest-name flags))))
         (crypto-error "unable to add a signer"))))
 
-    ;;[cms-sign-finalize        (->m box? bytes? (listof symbol?) integer?)]
+;;[cms-sign-finalize        (->m box? bytes? (listof symbol?) integer?)]
 (define (cms-sign-finalize  box-content-info data-bytes flags [factory/s (crypto-factories)])
   (with-crypto-entry 'cms-sign-finalize
     (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
           (let ([cms-sign (send factory -get-cms-sign)])
             (and cms-sign (send cms-sign cms-sign-finalize  box-content-info data-bytes flags))))
         (crypto-error "unable to finalize signing"))))
-    ;;[get-cms-content-info/DER (->m box? bytes?)]
+;;[get-cms-content-info/DER (->m box? bytes?)]
 (define (get-cms-content-info/DER  box-content-info [factory/s (crypto-factories)])
   (with-crypto-entry 'get-cms-content-info/DER
     (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
           (let ([cms-sign (send factory -get-cms-sign)])
             (and cms-sign (send cms-sign get-cms-content-info/DER  box-content-info))))
         (crypto-error "unable to get content info as DER binary"))))
-    ;;[cms-sign-receipt         (->m bytes? list? bytes? symbol? (listof symbol?) any/c)]
-    ;;[cms-add-recipient-cert   (->m box? bytes? (listof symbol?) any/c)]
-    ;;[cms-encrypt              (->m list? bytes? string? (listof symbol?) box?)]
-    ;;[get-cms-content-info-type (->m box? string?)]
-    ;;[get-pkey-format-from-sym  (->m symbol? any/c)]
+;;[cms-sign-receipt         (->m box? bytes? list? bytes? symbol? (listof symbol?) any/c)]
+(define (cms-sign-receipt  box-content-info cert-bytes cert-stack-list pkey-bytes pkey-fmt flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-sign-receipt
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign cms-sign-receipt  box-content-info cert-bytes cert-stack-list pkey-bytes pkey-fmt flags))))
+        (crypto-error "unable to sign rec ipient with private key"))))
+;;[cms-add-recipient-cert   (->m box? bytes? (listof symbol?) any/c)]
+(define (cms-add-recipient-cert box-content-info cert-bytes flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-add-recipient-cert
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign cms-add-recipient-cert  box-content-info cert-bytes flags))))
+        (crypto-error "unable to add a new recipient certificate"))))
+;;[cms-encrypt              (->m list? bytes? string? (listof symbol?) box?)]
+(define (cms-encrypt cert-stack-list data-bytes cipher-name flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-encrypt
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign cms-encrypt cert-stack-list data-bytes cipher-name flags))))
+        (crypto-error "unable to process encryption on given data "))))
+;;[get-cms-content-info-type (->m box? string?)]
+(define (get-cms-content-info-type box-content-info [factory/s (crypto-factories)])
+  (with-crypto-entry 'get-cms-content-info-type
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign get-cms-content-info-type box-content-info))))
+        (crypto-error "unable to get content-info type "))))
+
+;;[get-pkey-format-from-sym (->m symbol? any/c)]
+(define (get-pkey-format-from-sym pkey-fmt [factory/s (crypto-factories)])
+  (with-crypto-entry 'get-cms-content-info-type
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign get-pkey-format-from-sym pkey-fmt))))
+        (crypto-error "unable to get private key type "))))
+
+;;[cms-encrypt-with-skey     (->m bytes? bytes? string? (listof symbol?) box?)]
+(define (cms-encrypt-with-skey skey-bytes data-bytes cipher-name flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-encrypt-with-skey
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign cms-encrypt-with-skey skey-bytes data-bytes cipher-name flags))))
+        (crypto-error "unable to do encryption with key"))))
+
+;;[smime-write-CMS           (->m box? string? (listof symbol?) any/c)]
+(define (smime-write-CMS box-content-info fname flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'smime-write-CMS
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign smime-write-CMS box-content-info fname flags))))
+        (crypto-error "unable to write content-info in smime format"))))
+
+;;[smime-write-CMS-detached  (->m box? string? bytes? (listof symbol?) any/c)]
+(define (smime-write-CMS-detached box-content-info fname data-bytes flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'smime-write-CMS-detached
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign smime-write-CMS-detached box-content-info fname data-bytes flags))))
+        (crypto-error "unable to write content-info in smime format detached"))))
+
+;;[write-CMS/BER             (->m box? string? (listof symbol?) any/c)]
+(define (write-CMS/BER box-content-info fname flags [factory/s (crypto-factories)])
+  (with-crypto-entry 'write-CMS/BER
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign write-CMS/BER box-content-info fname flags))))
+        (crypto-error "unable to write content-info in BER format"))))
+
+;;[get-symmetric-key         (->m string? bytes?)]
+(define (get-symmetric-key cipher-name  [factory/s (crypto-factories)])
+  (with-crypto-entry 'get-symmetric-key
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-sign (send factory -get-cms-sign)])
+            (and cms-sign (send cms-sign get-symmetric-key cipher-name))))
+        (crypto-error "unable to generate symmetric key"))))
 
 ;;---------------------------
 
