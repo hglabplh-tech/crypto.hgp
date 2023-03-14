@@ -163,7 +163,7 @@
 
 (define input/c
   (flat-rec-contract input/c
-    (or/c bytes? string? input-port? bytes-range? (listof input/c))))
+                     (or/c bytes? string? input-port? bytes-range? (listof input/c))))
 
 ;; ============================================================
 ;; Implementation Factories
@@ -330,6 +330,8 @@
     [cms-signer-infos-get-signatures   (->m box? any/c)]
     [get-signer-infos-list             (->m box? (listof box?))]
     [get-signer-certs-list             (->m box? (listof box?))]
+    [get-issuer-x509                   (->m box? list?)]
+    [get-subject-x509                  (->m box? list?)]
     ))
 
 (define cms-tools<%>
@@ -344,4 +346,4 @@
     [call-with-val-copy-stream (->m procedure? any)]
     [build-copy-stream         (->m procedure? any/c procedure? any/c procedure? any/c)]
     
-                                   ))
+    ))

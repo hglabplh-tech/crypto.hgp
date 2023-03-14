@@ -25,6 +25,18 @@
          "../common/error.rkt")
 (provide (all-defined-out))
 
+(define-cpointer-type _CMS_ContentInfo)
+(define-cpointer-type _CMS_SignerInfo)
+(define-cpointer-type _CMS_RecipientInfo)
+(define-cpointer-type _ASN1_OBJECT)
+(define-cpointer-type _ASN1_BIT_STRING)
+(define-cpointer-type _BIO)
+(define-cpointer-type _BIO_METHOD)
+(define-cpointer-type _BUF_MEM)
+(define-cpointer-type _X509)
+(define-cpointer-type _X509_ALGOR)
+(define-cpointer-type _OPENSSL_STACK)
+
 (define-cstruct _asn1_string_st (
     [length _int]
     [type _int]
@@ -36,10 +48,28 @@
     
     [flags _long]))
 
-(define-cstruct _biodata (
-  [data _bytes]
-  [len _size]
-  [read_position _size]))
+;;=======================================================================
+ ;;quivalent to AttributeTypeAndValue defined
+ ;;* in RFC5280 et al.
+ ;;*/
+(define-cstruct _X509_name_entry_st (
+    [object _ASN1_OBJECT]         ;;/* AttributeType */
+    [value  _asn1_string_st-pointer]      ;;/* AttributeValue */
+    [set    _int]                     ;;/* index of RDNSequence for this entry */
+    [size   _int]))                ;;/* temp variable */
+
+
+;;/* Name from RFC 5280. */
+(define-cstruct _X509_name_st (
+    [entries  _OPENSSL_STACK]            ;;/* DN components */
+    [modified _int]               ;;/* true if 'bytes' needs to be built */
+    [bytes _BUF_MEM]             ;;coding: cannot be NULL */
+    ;;/* canonical encoding used for rapid Name comparison */
+    [canon_enc _ubyte]
+    [canon_enclen _int]
+)) ;;/* X509_NAME */ 
+
+ 
 
 
   

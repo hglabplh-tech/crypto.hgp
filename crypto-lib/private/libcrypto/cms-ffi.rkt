@@ -2,7 +2,8 @@
 (require binaryio/reader
          rnrs/io/ports-6
          racket/class
-         racket/match crypto crypto/libcrypto         
+         racket/match crypto crypto/libcrypto
+         racket/pretty
          "cmssig.rkt"
          "../common/cmssigbase.rkt"        
           
@@ -18,14 +19,15 @@
 (define symetric-key (get-symkey cipher-name))
 
 
-(define generate-cms-from-signature-files (lambda(cert-fname ca-cert-fname pkey-fname pkey-fmt data-fname out-name flags)
+(define generate-cms-from-signature-files (lambda(cert-fname ca-cert-fname inter-cert-fname pkey-fname pkey-fmt data-fname out-name flags)
                                             (let* ([cert-bytes (read-bytes-from-file cert-fname)]
                                                    [ca-cert-bytes (read-bytes-from-file ca-cert-fname)]
+                                                   [inter-cert-bytes (read-bytes-from-file inter-cert-fname)]
                                                    [pkey-bytes (read-bytes-from-file pkey-fname)]
                                                    [data-bytes  (read-bytes-from-file data-fname)]
                                                    [sign-impl (new libcrypto-cms-sign%  (factory libcrypto-factory))]
                                                    [cms-sig-der (send sign-impl cms-sign-sure cert-bytes pkey-bytes pkey-fmt 
-                                                                      (list ca-cert-bytes)
+                                                                      (list ca-cert-bytes inter-cert-bytes)
                                                                       data-bytes flags)])                                   
                                               (write-bytes-to-file out-name cms-sig-der)
                                               )))
@@ -114,12 +116,12 @@
                                    [box-content-info (send check-impl
                                                            cms-content/SMIME->content-info content-info-bytes)]
                                    )
-                                (let ([mem-bio
-                                       (send check-impl cms-decrypt box-content-info
-                                             cert-bytes pkey-bytes pkey-fmt flags)])
-                                  (write-internal-to-file fname mem-bio )
-                                  )
-                                )))
+                              (let ([mem-bio
+                                     (send check-impl cms-decrypt box-content-info
+                                           cert-bytes pkey-bytes pkey-fmt flags)])
+                                (write-internal-to-file fname mem-bio )
+                                )
+                              )))
                     
 (define cms-decrypt-with-skey  (lambda (content-info-file skey-bytes fname flags)
                                  (let* ([check-impl (new libcrypto-cms-check-explore% (factory libcrypto-factory))]
@@ -127,13 +129,13 @@
                                         [box-content-info (send check-impl
                                                                 cms-content/DER->content-info content-info-bytes)])
                                    (send check-impl cms-decrypt-with-skey box-content-info skey-bytes flags)
-                                      (let ([mem-bio
-                               (send check-impl
-                                     cms-decrypt-with-skey
-                                     box-content-info skey-bytes flags)])                                 
-                          (write-internal-to-file fname mem-bio )
-                          )
-                        )))
+                                   (let ([mem-bio
+                                          (send check-impl
+                                                cms-decrypt-with-skey
+                                                box-content-info skey-bytes flags)])                                 
+                                     (write-internal-to-file fname mem-bio )
+                                     )
+                                   )))
                                  
 
 (define verify-cms-from-files (lambda(cert-fname ca-cert-fname sig-cert-fname signature-name flags)
@@ -147,11 +149,19 @@
                                        [cert-stack-list (list cert-bytes ca-cert-bytes)])
                                   
                                   (let ([result (send check-impl cms-sig-verify box-content-info
-                                                      (list cert-bytes sig-cert-bytes ca-cert-bytes) flags)])
+                                                      (list cert-bytes sig-cert-bytes ca-cert-bytes) flags)]
+                                        [cert-list (send check-impl get-signer-certs-list box-content-info)])
                                     (printf "verification result: ~a\n" result)
-                                    (displayln (send check-impl cms-signer-infos-get-signatures box-content-info))                                    
-                                    (displayln (send check-impl get-signer-certs-list box-content-info))
-                                    (send check-impl cms-signinfo-get-first-signature box-content-info ))
+                                    (displayln (send check-impl cms-signer-infos-get-signatures box-content-info))
+                                    (displayln "======================================================================") 
+                                    (pretty-print (map (lambda (object)
+                                                         (send check-impl get-subject-x509 object)) cert-list))
+                                    (displayln "======================================================================") 
+                                    (pretty-print (map (lambda (object)
+                                                         (send check-impl get-issuer-x509 object)) cert-list))
+                                    (displayln "======================================================================") 
+                                    (pretty-print (send check-impl cms-signinfo-get-first-signature box-content-info ))
+                                    (displayln "======================================================================"))
                                   )))
 
 (define (write-internal-to-file fname internal)
@@ -175,6 +185,7 @@
     ))
 
 (define outage (generate-cms-from-signature-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
+                                                  "data/freeware-inter-cert.der"
                                                   "data/freeware-user-key.der" 'rsa-key "pkey.rkt" 
                                                   "data/cms-sig.pkcs7" '(cms-binary cms-cades)))
 
@@ -184,9 +195,9 @@
                                                           "data/freeware-user-cert_1.der"
                                                           "data/freeware-user-key_1.der" '(cms-cades cms-binary) '(cms-cades cms-binary)))
 
-(define outage-envelop (generate-cms-encrypt-from-files "data/freeware-user-cert.der" 
-                                                        "data/freeware-user-key.der"  "ffi.rkt" (list "data/cms-envelop-ext.pkcs7"
-                                                                                                      "data/cms-envelop-ext-i2d-write.pkcs7")
+(define outage-envelop (generate-cms-encrypt-from-files "data/freeware-user-cert_1.der" 
+                                                        "data/freeware-user-key_1.der"  "ffi.rkt" (list "data/cms-envelop-ext.pkcs7"
+                                                                                                        "data/cms-envelop-ext-i2d-write.pkcs7")
                                                         "data/freeware-user-cert_1.der"
                                                         "data/freeware-user-key_1.der" '(cms-binary cms-stream) '(cms-binary cms-stream)))
 
@@ -206,6 +217,6 @@
 (printf "Attribute-List ~a ~n" (get-cms-attrs-from-list '(cms-detached cms-binary cms-partial)))
 (printf "Attribute-intern ~a ~n" (build-attr-val-from-list 0 '(cms-detached cms-binary cms-partial)))
 
-(cms-decrypt "data/freeware-user-cert.der" "data/freeware-user-key.der" 'rsa-key  "data/cms-envelop-ext.pkcs7" "data/out.bin" '(cms-binary))
-(cms-smime-decrypt "data/freeware-user-cert.der" "data/freeware-user-key.der" 'rsa-key  "data/cms-envelop-ext-SMIME.smime" "data/out-smime.bin" '(cms-binary))
+(cms-decrypt "data/freeware-user-cert_1.der" "data/freeware-user-key_1.der" 'rsa-key  "data/cms-envelop-ext.pkcs7" "data/out.bin" '(cms-binary))
+(cms-smime-decrypt "data/freeware-user-cert_1.der" "data/freeware-user-key_1.der" 'rsa-key  "data/cms-envelop-ext-SMIME.smime" "data/out-smime.bin" '(cms-binary))
 (cms-decrypt-with-skey  "data/cms-encrypt-ext.pkcs7" symetric-key "data/encrypt-decr-data.bin" '())

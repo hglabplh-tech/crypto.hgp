@@ -26,7 +26,7 @@
          "../common/common.rkt"
          "../common/cmssigbase.rkt"
          "../common/asn1.rkt"
-         "../common/error.rkt"         
+         "../common/error.rkt"        
          "cmssigffi.rkt")
 (provide (all-defined-out)
          get-asn1-data)
@@ -252,12 +252,12 @@
     (define/override (cms-signinfo-get-first-signature box-content-info)
       (let* ([signer-info-stack (CMS_get0_SignerInfos (unbox box-content-info))]
              [first-sig-info (sk-typed-value signer-info-stack 0 _CMS_SignerInfo)])
-        (asn1-octet-members-as-list (CMS_SignerInfo_get0_signature first-sig-info))))
+        (asn1-string-members-as-list (CMS_SignerInfo_get0_signature first-sig-info))))
 
     (define/override (cms-signer-infos-get-signatures box-content-info)
       (let* ([sig-infos-list (get-signer-infos-list box-content-info)])
         (map
-         (lambda (box-sign-info)(asn1-octet-members-as-list
+         (lambda (box-sign-info)(asn1-string-members-as-list
                                  (CMS_SignerInfo_get0_signature (unbox box-sign-info))))
          sig-infos-list)
         ))
@@ -270,37 +270,17 @@
     (define/override (get-signer-certs-list box-content-info) 
       (let* ([stack (CMS_get0_signers (unbox box-content-info))])             
         (get-stack-elements-list stack _X509)))
+
+    (define/override (get-issuer-x509 box-cert)
+      (X509_name_st->list (X509_get_issuer_name (unbox box-cert))))
+
+    (define/override (get-subject-x509 box-cert)
+      (X509_name_st->list (X509_get_subject_name (unbox box-cert))))
     
 
     (define/private (get-stack-elements-list stack type)
-      (let* ([sk-size (OPENSSL_sk_num stack)]
-             [size-counter (- sk-size 1)])
-        
-        (printf "stack size: ~a"  sk-size) 
-        (cond [(not (eq? sk-size 0))                    
-               (let elements-to-list  ([intern-size size-counter]
-                                       [complete-list '()]
-                                       [element-info-list (list (box-immutable
-                                                                 (sk-typed-value stack size-counter type)))])
-                 
-                 (cond [(>= intern-size 0) ;; may be transfer to tail-recursion
-                        (elements-to-list
-                         (- intern-size 1)
-                         (append complete-list element-info-list) 
-                         (list (box-immutable
-                                (sk-typed-value stack
-                                                (cond [(>= (- intern-size 1) 0) (- intern-size 1)]
-                                                      [else 0])
-                                                type)))                 
-                         )
-
-                        ]
-                       [else complete-list]
-                       )
-                 )
-               ])
-        )
-      )
+     (stack-content->list stack type))
+      
     
     ))
 

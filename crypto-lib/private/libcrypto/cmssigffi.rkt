@@ -40,7 +40,18 @@
          NID_ED448
          i2d
          EVP_get_digestbyname
-         EVP_get_cipherbyname)
+         EVP_get_cipherbyname
+         _CMS_ContentInfo
+         _CMS_SignerInfo
+         _CMS_RecipientInfo
+         _ASN1_OBJECT
+         _ASN1_BIT_STRING
+         _BIO
+         _BIO_METHOD
+         _BUF_MEM
+         _X509
+         _X509_ALGOR
+         _OPENSSL_STACK)
 
 ;;=======================================================================
 ;; CMS signature ffi description / definition
@@ -104,9 +115,7 @@
 
 ;;BIO create mem BIO for CMS signing
 ;;BIO *BIO_new_mem_buf(const void *buf, int len);
-(define-cpointer-type _BIO)
-(define-cpointer-type _BIO_METHOD)
-(define-cpointer-type _BUF_MEM)
+
 
 (define-crypto BIO_s_mem (_fun -> _BIO_METHOD/null)
   #:wrap (err-wrap/pointer 'BIO_s_mem))
@@ -154,8 +163,8 @@
 
 
 
-;; X509 Pointer
-(define-cpointer-type _X509)
+
+
 
 
 (define-crypto X509_free
@@ -176,6 +185,20 @@
                           _BIO (_pointer = #f) -> _X509/null)
   #:wrap (compose (allocator X509_free) (err-wrap/pointer 'd2i_X509_bio)))
 
+;; certificate - getters
+;;X509_NAME *X509_get_subject_name(const X509 *x);
+(define-crypto X509_get_subject_name (_fun _X509 -> (x509Name : _pointer)
+                               -> (ptr-ref x509Name _X509_name_st)))
+
+;;X509_NAME *X509_get_issuer_name(const X509 *x);
+(define-crypto X509_get_issuer_name (_fun _X509 -> (x509Name : _pointer)
+                               -> (ptr-ref x509Name _X509_name_st)))
+
+;;void X509_get0_signature(const ASN1_BIT_STRING **psig,
+                         ;; const X509_ALGOR **palg,
+                         ;; const X509 *x);
+(define-crypto  X509_get0_signature (_fun _pointer _pointer _X509 -> _void))
+
 ;; CMS signing
 
 ;;define a *char pointer
@@ -183,7 +206,7 @@
                                     (let ([p (malloc _byte (bytes-length buffer) 'atomic)])
                                       (memcpy p buffer (bytes-length buffer) _byte) p)))
 ;; try to define stack
-(define-cpointer-type _OPENSSL_STACK)
+
 
 (define-crypto OPENSSL_sk_free(_fun _OPENSSL_STACK -> _void)
    #:wrap (deallocator))
@@ -221,9 +244,7 @@
 ;;CMS_ContentInfo *CMS_sign(X509 *signcert, EVP_PKEY *pkey, STACK_OF(X509) *certs,
                            ;;BIO *data, unsigned int flags);
 
-(define-cpointer-type _CMS_ContentInfo)
-(define-cpointer-type _CMS_SignerInfo)
-(define-cpointer-type _CMS_RecipientInfo)
+
 
 (define-crypto CMS_ContentInfo_free(_fun _CMS_ContentInfo  -> _void)
   #:wrap (deallocator))
@@ -336,19 +357,13 @@
                                                    -> (ptr-ref octet _asn1_string_st))
   #:wrap (err-wrap/pointer 'CMS_SignerInfo_get0_signature))
 
- (define asn1-octet-members-as-list (lambda (instance)
-                               (let ([octet-length (asn1_string_st-length instance)]
-                                     [octet-type (asn1_string_st-type instance)]
-                                     [octet-val (asn1_string_st-data instance)]
-                                     [octet-flags (asn1_string_st-flags instance)])
-                                 (list (list 'octet-length octet-length) (list 'octet-type octet-type)
-                                       (list 'octet-val octet-val) (list 'octet-flags octet-flags)))))
+
 
 ;; Get data from contentinfo / meta data and content
 
 ;;const ASN1_OBJECT *CMS_get0_type(CMS_ContentInfo *cms);
 
-(define-cpointer-type _ASN1_OBJECT)
+
 
 (define-crypto CMS_get0_type (_fun _CMS_ContentInfo -> _ASN1_OBJECT)
   #:wrap (err-wrap/pointer 'CMS_get0_type))
@@ -389,4 +404,75 @@
 (define-crypto CMS_EncryptedData_decrypt(_fun _CMS_ContentInfo
                               _bytes _size _BIO/null _BIO _uint -> _int)
    #:wrap (err-wrap 'CMS_EncryptedData_decrypt))
+
+;; Helper funs
+(define asn1-string-members-as-list (lambda (instance)
+                               (let ([string-length (asn1_string_st-length instance)]
+                                     [string-type (asn1_string_st-type instance)]
+                                     [string-val (asn1_string_st-data instance)]
+                                     [string-flags (asn1_string_st-flags instance)])
+                                 (list (list 'string-length string-length) (list 'string-type string-type)
+                                       (list 'string-val string-val) (list 'string-flags string-flags)))))
+(define (stack-content->list stack type)
+   (let* ([sk-size (OPENSSL_sk_num stack)]
+             [size-counter (- sk-size 1)])
+        
+        (printf "stack size: ~a"  sk-size) 
+        (cond [(not (eq? sk-size 0))                    
+               (let elements-to-list  ([intern-size size-counter]
+                                       [complete-list '()]
+                                       [element-info-list (list (box-immutable
+                                                                 (sk-typed-value stack size-counter type)))])
+                 
+                 (cond [(>= intern-size 0) ;; may be transfer to tail-recursion
+                        (elements-to-list
+                         (- intern-size 1)
+                         (append complete-list element-info-list) 
+                         (list (box-immutable
+                                (sk-typed-value stack
+                                                (cond [(>= (- intern-size 1) 0) (- intern-size 1)]
+                                                      [else 0])
+                                                type)))                 
+                         )
+
+                        ]
+                       [else (reverse complete-list)]
+                       )
+                 )
+               ])))
+
+;; x509 Name logic
+
+(define (name-oid-to-symbol name-oid)
+  (let ([name-oid-pairs
+  (list
+   (list "550406" 'C=)
+   (list "550408" 'S=)
+   (list "550407" 'L=)
+   (list "55040a" 'O=)
+   (list "55040b" 'OU=)
+   (list "550403" 'CN=)
+   (list "2a864886f70d010901" 'E=))])
+    (cadr (assoc name-oid name-oid-pairs))
+    ))
+                       
+
+(define X509_name_st->list (lambda (instance)
+                             (let ([entries (map X509_name_entry_st->list (stack-content->list
+                                             (X509_name_st-entries instance) _pointer))]
+                                   [modified (X509_name_st-modified instance)]
+                                   )
+                               (list (list 'entries entries) (list (list 'modified modified)))
+                                 )))
+
+(define X509_name_entry_st->list (lambda (instance-ptr)
+                                   (let* ([instance (ptr-ref (unbox instance-ptr) _X509_name_entry_st)]
+                                          [object (name-oid-to-symbol (get-asn1-data (X509_name_entry_st-object instance)))]
+                                          [value (asn1-string-members-as-list
+                                                  (X509_name_entry_st-value instance))]                                          
+                                          [set (X509_name_entry_st-set instance)]
+                                          [size (X509_name_entry_st-size instance)])
+
+                                     (list (list 'object object) (list 'value value) (list 'set set) (list 'size size) 
+                                   ))))
   

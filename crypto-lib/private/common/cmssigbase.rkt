@@ -66,6 +66,9 @@
     (define/public (cms-signer-infos-get-signatures box-content-info) #f)
     (define/public (get-signer-infos-list box-content-info) #f)
     (define/public (get-signer-certs-list box-content-info) #f)
+    (define/public (get-issuer-x509 box-cert) #f)
+    (define/public (get-subject-x509 box-cert) #f)
+      
     ))
 
 (define cms-tools-base% 
