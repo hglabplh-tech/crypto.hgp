@@ -676,10 +676,11 @@
 
 ;; ----------------------------------------
 
-;; ---- cms signing ---------
+;; ---- cms functionality ---------
 
 (provide
  (contract-out
+  ;; ---- cms signing ---------
   [cms-sign-simple
    (->* [bytes? bytes? symbol? (listof bytes?) bytes? (listof symbol?)]
         bytes?)]
@@ -731,8 +732,72 @@
   [get-symmetric-key
    (->* [string?]
         bytes?)]
+
+  ;; ---- cms check explore ---------
+  [cms-content/DER->content-info
+   (->*  [bytes?]
+         (or/c boolean? box?))]
+  [cms-content/SMIME->content-info
+   (->* [bytes?]
+        (or/c boolean? box?))]
+  [cms-sig-verify
+   (->* [box? (listof bytes?) (listof symbol?)]
+        symbol?)]
+  [cms-decrypt
+   (->* [box? bytes? bytes? symbol? (listof symbol?)]
+        any/c)]
+  [cms-decrypt-with-skey
+   (->* [box? bytes? (listof symbol?)]
+        any/c)]
+  [cms-signinfo-get-first-signature
+   (->* [box?]
+        list?)]
+  [cms-signer-infos-get-signatures
+   (->* [box?]
+        list?)]
+  [cms-get-signer-infos-list
+   (->* [box?]
+        (listof box?))]
+  [cms-get-signer-certs-list
+   (->* [box?]
+        (listof box?))]
+  [get-issuer-x509
+   (->* [box?]
+        list?)]
+   [get-subject-x509
+   (->* [box?]
+        list?)]
+
+   ;;------- cms tools ---------
+
+   [internal-bytes-read-fun
+    (-> procedure?)]
+   [stream-file-write
+    (-> procedure?)]
+   [open-stream-file-write
+    (->* [string?] output-port?)]
+   [open-stream-mem
+    (-> object?)]
+   [stream-write-mem
+    (-> procedure?)]
+   [get-bytes-from-mem
+    (->* [object?]
+         bytes?)]
+   [get-close-fun
+    (->* [(or/c  procedure? boolean?) (or/c  procedure? boolean?)]
+         procedure?)]
+   [call-with-val-copy-stream
+    (->* [procedure?]
+         any)]
+   [build-copy-stream
+    (->* [procedure? any/c procedure? any/c procedure?]
+         procedure?)]
+   
   ))
   
+;;===============================================================================================================
+;;CMS signing
+;;===============================================================================================================
 
 ;;[cms-sign-sure            (->m bytes? bytes? symbol? (listof bytes?) bytes? (listof symbol?) bytes?)]
 (define (cms-sign-simple cert-bytes pkey-bytes pkey-fmt cert-stack-list data-bytes flags [factory/s (crypto-factories)])
@@ -863,7 +928,174 @@
             (and cms-sign (send cms-sign get-symmetric-key cipher-name))))
         (crypto-error "unable to generate symmetric key"))))
 
-;;---------------------------
+;;===============================================================================================================
+;;CMS check / explore
+;;===============================================================================================================
+
+;;[cms-content/DER->content-info     (->m bytes? (or/c boolean? box?))]
+(define (cms-content/DER->content-info content-info-buffer  [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-content/DER->content-info
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore cms-content/DER->content-info content-info-buffer))))
+        (crypto-error "unable to read cms DER buffer"))))
+
+;;[cms-content/SMIME->content-info   (->m bytes? (or/c boolean? box?))]
+(define (cms-content/SMIME->content-info content-info-buffer  [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-content/SMIME->content-info
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore cms-content/SMIME->content-info content-info-buffer))))
+        (crypto-error "unable to read cms SMIME buffer"))))
+
+;;[cms-sig-verify                    (->m box? (listof bytes?) (listof symbol?) symbol?)]
+(define (cms-sig-verify box-content-info cert-stack-list flags  [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-sig-verify
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore cms-sig-verify box-content-info cert-stack-list flags))))
+        (crypto-error "unable to verify cms-content-info"))))
+
+;;[cms-decrypt                       (->m box? bytes? bytes? symbol? (listof symbol?) any/c)]
+(define (cms-decrypt box-content-info cert-bytes pkey-bytes pkey-fmt flags  [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-decrypt
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore cms-decrypt box-content-info cert-bytes pkey-bytes pkey-fmt flags))))
+        (crypto-error "unable to decrypt enveloped data"))))
+
+;;[cms-decrypt-with-skey             (->m box? bytes? (listof symbol?) any/c)]
+(define (cms-decrypt-with-skey box-content-info skey-bytes flags  [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-decrypt-with-skey
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore cms-decrypt-with-skey box-content-info skey-bytes flags))))
+        (crypto-error "unable to decrypt private encrypted data"))))
+
+;;[cms-signinfo-get-first-signature  (->m box? list?)]
+(define (cms-signinfo-get-first-signature box-content-info  [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-signinfo-get-first-signature
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore cms-signinfo-get-first-signature box-content-info))))
+        (crypto-error "unable to get signature of first signer info"))))
+
+;;[cms-signer-infos-get-signatures   (->m box? list?)]
+(define (cms-signer-infos-get-signatures box-content-info  [factory/s (crypto-factories)])
+  (with-crypto-entry 'cms-signer-infos-get-signatures
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore cms-signer-infos-get-signatures box-content-info))))
+        (crypto-error "unable to get signatures of signer-infos"))))
+
+;;[get-signer-infos-list             (->m box? (listof box?))]
+(define (cms-get-signer-infos-list box-content-info  [factory/s (crypto-factories)])
+  (with-crypto-entry 'get-signer-infos-list
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore get-signer-infos-list box-content-info))))
+        (crypto-error "unable to get signer-infos"))))
+
+;;[get-signer-certs-list             (->m box? (listof box?))]
+(define (cms-get-signer-certs-list box-content-info  [factory/s (crypto-factories)])
+  (with-crypto-entry 'get-signer-certs-list
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore get-signer-certs-list box-content-info))))
+        (crypto-error "unable to get signer-certs"))))
+
+
+;;[get-issuer-x509                   (->m box? list?)]
+(define (get-issuer-x509 box-cert  [factory/s (crypto-factories)])
+  (with-crypto-entry 'get-issuer-x509
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore get-issuer-x509 box-cert))))
+        (crypto-error "unable to get certificate issuer"))))
+
+;;[get-subject-x509                  (->m box? list?)]
+(define (get-subject-x509 box-cert  [factory/s (crypto-factories)])
+  (with-crypto-entry 'get-subject-x509
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-check-explore (send factory -get-cms-check-explore)])
+            (and cms-check-explore (send cms-check-explore get-subject-x509 box-cert))))
+        (crypto-error "unable to get certificate subject"))))
+
+;;===============================================================================================================
+;;CMS tools
+;;===============================================================================================================
+
+ ;;[internal-bytes-read-fun  (->m procedure?)]
+(define (internal-bytes-read-fun [factory/s (crypto-factories)])
+  (with-crypto-entry 'internal-bytes-read-fun
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-tools (send factory -get-cms-tools)])
+            (and cms-tools (send cms-tools internal-bytes-read-fun))))
+        (crypto-error "unable to get internal buffer read fun"))))
+
+ ;;[stream-file-write        (->m procedure?)]
+(define (stream-file-write [factory/s (crypto-factories)])
+  (with-crypto-entry 'stream-file-write
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-tools (send factory -get-cms-tools)])
+            (and cms-tools (send cms-tools stream-file-write))))
+        (crypto-error "unable to get write file fun"))))
+
+ ;;[open-stream-file-write   (->m string? output-port?)]
+(define (open-stream-file-write fname [factory/s (crypto-factories)])
+  (with-crypto-entry 'open-stream-file-write
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-tools (send factory -get-cms-tools)])
+            (and cms-tools (send cms-tools open-stream-file-write fname))))
+        (crypto-error "unable to get write file fun"))))
+
+ ;;[open-stream-mem          (->m object?)]
+(define (open-stream-mem [factory/s (crypto-factories)])
+  (with-crypto-entry 'open-stream-mem
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-tools (send factory -get-cms-tools)])
+            (and cms-tools (send cms-tools open-stream-mem))))
+        (crypto-error "unable to get stream mem object"))))
+
+ ;;[stream-write-mem         (->m procedure?)]
+(define (stream-write-mem [factory/s (crypto-factories)])
+  (with-crypto-entry 'stream-write-mem
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-tools (send factory -get-cms-tools)])
+            (and cms-tools (send cms-tools stream-write-mem))))
+        (crypto-error "unable to getstream mem write fun"))))
+
+ ;;[get-bytes-from-mem       (->m object? bytes?)]
+(define (get-bytes-from-mem stream [factory/s (crypto-factories)])
+  (with-crypto-entry 'get-bytes-from-mem
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-tools (send factory -get-cms-tools)])
+            (and cms-tools (send cms-tools get-bytes-from-mem stream))))
+        (crypto-error "unable to get bytes from mem stream"))))
+ ;;[close-fun                (->m (or/c  procedure? boolean?) (or/c  procedure? boolean?) procedure?)]
+(define (get-close-fun proc-close-in proc-close-out [factory/s (crypto-factories)])
+  (with-crypto-entry 'get-close-fun
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-tools (send factory -get-cms-tools)])
+            (and cms-tools (send cms-tools close-fun proc-close-in proc-close-out))))
+        (crypto-error "unable to get close fun"))))
+ ;;[call-with-val-copy-stream (->m procedure? any)]
+(define (call-with-val-copy-stream streaming-proc [factory/s (crypto-factories)])
+  (with-crypto-entry 'call-with-val-copy-stream
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-tools (send factory -get-cms-tools)])
+            (and cms-tools (send cms-tools call-with-val-copy-stream streaming-proc))))
+        (crypto-error "unable to call the functions streaming"))))
+
+ ;;[build-copy-stream         (->m procedure? any/c procedure? any/c procedure? procedure?)]
+(define (build-copy-stream in-proc source out-proc target close-proc [factory/s (crypto-factories)])
+  (with-crypto-entry 'build-copy-stream
+    (or (for/or ([factory (in-list (if (list? factory/s) factory/s (list factory/s)))])
+          (let ([cms-tools (send factory -get-cms-tools)])
+            (and cms-tools (send cms-tools build-copy-stream in-proc source out-proc target close-proc))))
+        (crypto-error "unable to get streaming procedure from parameters"))))
+
+;;================================================================================================================
 
 (define (pk-sign pk msg #:digest [dspec #f] #:pad [pad #f])
   (with-crypto-entry 'pk-sign

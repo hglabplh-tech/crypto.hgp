@@ -2,7 +2,7 @@
 (require binaryio/reader
          rnrs/io/ports-6
          racket/class
-         racket/match crypto crypto/libcrypto
+         racket/match crypto/libcrypto
          racket/pretty
          "cmssig.rkt"
          "../common/cmssigbase.rkt"        
@@ -19,15 +19,14 @@
 (define symetric-key (get-symkey cipher-name))
 
 
-(define generate-cms-from-signature-files (lambda(cert-fname ca-cert-fname inter-cert-fname pkey-fname pkey-fmt data-fname out-name flags)
+(define generate-cms-from-signature-files (lambda(cert-fname ca-cert-fname pkey-fname pkey-fmt data-fname out-name flags)
                                             (let* ([cert-bytes (read-bytes-from-file cert-fname)]
-                                                   [ca-cert-bytes (read-bytes-from-file ca-cert-fname)]
-                                                   [inter-cert-bytes (read-bytes-from-file inter-cert-fname)]
+                                                   [ca-cert-bytes (read-bytes-from-file ca-cert-fname)]                                                   
                                                    [pkey-bytes (read-bytes-from-file pkey-fname)]
                                                    [data-bytes  (read-bytes-from-file data-fname)]
                                                    [sign-impl (new libcrypto-cms-sign%  (factory libcrypto-factory))]
                                                    [cms-sig-der (send sign-impl cms-sign-sure cert-bytes pkey-bytes pkey-fmt 
-                                                                      (list ca-cert-bytes inter-cert-bytes)
+                                                                      (list ca-cert-bytes)
                                                                       data-bytes flags)])                                   
                                               (write-bytes-to-file out-name cms-sig-der)
                                               )))
@@ -185,7 +184,6 @@
     ))
 
 (define outage (generate-cms-from-signature-files "data/freeware-user-cert.der" "data/freeware-ca-cert.der"
-                                                  "data/freeware-inter-cert.der"
                                                   "data/freeware-user-key.der" 'rsa-key "pkey.rkt" 
                                                   "data/cms-sig.pkcs7" '(cms-binary cms-cades)))
 
@@ -201,8 +199,7 @@
                                                         "data/freeware-user-cert_1.der"
                                                         "data/freeware-user-key_1.der" '(cms-binary cms-stream) '(cms-binary cms-stream)))
 
-(printf "first print skey: ~a\n" (bytes->hex-string symetric-key))
-(printf "second print skey: ~a\n" (bytes->hex-string symetric-key))
+
 
 
 (generate-cms-encrypt-skey-files symetric-key  "ffi.rkt" "data/cms-encrypt-ext.pkcs7" '())

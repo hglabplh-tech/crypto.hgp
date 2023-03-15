@@ -467,7 +467,9 @@
 
 (define X509_name_entry_st->list (lambda (instance-ptr)
                                    (let* ([instance (ptr-ref (unbox instance-ptr) _X509_name_entry_st)]
-                                          [object (name-oid-to-symbol (get-asn1-data (X509_name_entry_st-object instance)))]
+                                          [object (name-oid-to-symbol
+                                                   (get-asn1-data
+                                                    (X509_name_entry_st-object instance)))]
                                           [value (asn1-string-members-as-list
                                                   (X509_name_entry_st-value instance))]                                          
                                           [set (X509_name_entry_st-set instance)]

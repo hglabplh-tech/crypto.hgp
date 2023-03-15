@@ -100,8 +100,8 @@
         (cond [(not (eq? proc-close-in #f)) (proc-close-in source)])
         (cond [(not (eq? proc-close-out #f)) (proc-close-out target)])))
 
-    (define/public (call-with-val-copy-stream proc)       
-      (call-with-values proc copy-stream-by-funs))     
+    (define/public (call-with-val-copy-stream streaming-proc)       
+      (call-with-values streaming-proc copy-stream-by-funs))     
 
     (define/public (build-copy-stream in-proc source out-proc target close-proc)
       (lambda ()         
