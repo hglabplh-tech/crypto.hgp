@@ -78,9 +78,9 @@
 
  (define-asn1-type ContentInfo (SEQUENCE 
         (contentType ContentType)        
-        (content #:explicit 0 #:dependent(cadr (assoc  contentType (list (list id-cms-enveloped-data EnvelopedData)
-                                                                          (list id-cms-signed-data SignedData) 
-                                                (list id-cms-data ANY)))))))
+        (content #:explicit 0 #:dependent (cond [(eq? contentType id-cms-enveloped-data) EnvelopedData]
+                                                [(eq? contentType id-cms-signed-data) SignedData]
+                                                [else ANY]))))
 
  (define ContentType OBJECT-IDENTIFIER)
 

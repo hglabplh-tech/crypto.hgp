@@ -16,6 +16,6 @@
               (let ([bytes (read-bytes-from-file fname)])
                 (bytes->asn1 ContentInfo bytes))))
 
-(displayln(cadr (assoc 7 (list '(8 a) '(7 k) '(3 b)))))
+
 (displayln id-cms-auth-enveloped-data)
-(test "cms-sig-ext.pkcs7")
+(test "data/cms-sig-ext.pkcs7")
