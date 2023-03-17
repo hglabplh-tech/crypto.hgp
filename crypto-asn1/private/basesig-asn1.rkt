@@ -416,13 +416,12 @@
 (define id-domainComponent (OID 0 9 2342 19200300 100 1 25))
 
 (define id-emailAddress (build-OID pkcs-9 1))
-(define -SomeString
-  (CHOICE
-   
-   (printableString PrintableString)
-   (universalString UniversalString)
-   (utf8String UTF8String)
-   (bmpString BMPString)))
+(define-asn1-type -SomeString
+  (CHOICE  
+   (printableString  PrintableString)
+   (universalString  UniversalString)
+   (utf8String   UTF8String)
+   (bmpString  BMPString)))
 (define X520name -SomeString)
 (define X520CommonName -SomeString)
 (define X520LocalityName -SomeString)
@@ -613,10 +612,10 @@
   (SEQUENCE (organization DisplayText) (noticeNumbers (SEQUENCE-OF INTEGER))))
 (define-asn1-type DisplayText
   (CHOICE
-   (ia5String IA5String)
+   (ia5String  IA5String)
    (visibleString VisibleString)
-   (bmpString BMPString)
-   (utf8String UTF8String)))
+   (bmpString  BMPString)
+   (utf8String  UTF8String)))
 
 (define-asn1-type PolicyMappings
   (SEQUENCE-OF
@@ -634,7 +633,15 @@
    (ediPartyName #:implicit 5 EDIPartyName)
    (uniformResourceIdentifier #:implicit 6 IA5String)
    (iPAddress #:implicit 7 OCTET-STRING)
-   (registeredID #:implicit 8 OBJECT-IDENTIFIER)))
+   (registeredID #:implicit 8 OBJECT-IDENTIFIER)
+   ;;/* Old names */
+   (ip #:implicit 9 OCTET-STRING);  /* iPAddress */
+   (dirn #:implicit 10 Name) ;; */
+   (ia5 #:implicit 11 IA5String);;/* rfc822Name, dNSName,
+                                 ;;* uniformResourceIdentifier */
+   (rid #:implicit 12 OBJECT-IDENTIFIER)       ;;/* registeredID */
+   (other #:implicit 13 ORAddress)     ;; /* x400Address */
+         	#:extensible not-defined-general-name))
 (define-asn1-type AnotherName
   (SEQUENCE
    (type-id OBJECT-IDENTIFIER)
@@ -1023,9 +1030,11 @@
   (WRAP (SEQUENCE [algorithm              OBJECT-IDENTIFIER]
                   [parameters #:dependent (get-type algorithm) #:optional])))
 
+
 (define AlgorithmIdentifier/DER
   (WRAP (SEQUENCE [algorithm  OBJECT-IDENTIFIER]
                   [parameters ANY/DER #:optional])))
+
 
 (define PUBKEY
   ;; for SubjectPublicKeyInfo, PrivateKeyInfo, OneAsymmetricKey

@@ -30,17 +30,46 @@
 
 ;;==================================================================================================
 ;;Attribute certificate V2
+(define SIGNING
+  (relation
+   #:heading
+   ['oid                    'pk  'digest 'params  'params-presence]
+   #:tuples
+   ;; From RFC 5912:
+   [md5WithRSAEncryption    'rsa 'md5    NULL     'required]
+   [sha1WithRSAEncryption   'rsa 'sha1   NULL     'required]
+   [sha224WithRSAEncryption 'rsa 'sha224 NULL     'required]
+   [sha256WithRSAEncryption 'rsa 'sha256 NULL     'required]
+   [sha384WithRSAEncryption 'rsa 'sha384 NULL     'required]
+   [sha512WithRSAEncryption 'rsa 'sha512 NULL     'required]
+   [id-RSASSA-PSS           'rsa #f      RSASSA-PSS-params 'required]
+   [dsa-with-sha1           'dsa 'sha1   NULL     'absent]
+   [id-dsa-with-sha224      'dsa 'sha224 NULL     'absent]
+   [id-dsa-with-sha256      'dsa 'sha256 NULL     'absent]
+   [id-dsa-with-sha384      'dsa 'sha384 NULL     'absent]
+   [id-dsa-with-sha512      'dsa 'sha512 NULL     'absent]
+   [ecdsa-with-SHA1         'ec  'sha1   NULL     'absent]
+   [ecdsa-with-SHA224       'ec  'sha224 NULL     'absent]
+   [ecdsa-with-SHA256       'ec  'sha256 NULL     'absent]
+   [ecdsa-with-SHA384       'ec  'sha384 NULL     'absent]
+   [ecdsa-with-SHA512       'ec  'sha512 NULL     'absent]
+
+   ;; From RFC 8410:
+   [id-Ed25519              'eddsa #f    #f       'absent]
+   [id-Ed448                'eddsa #f    #f       'absent]
+   ))
+
 
   (define-asn1-type AttributeCertificate (SEQUENCE 
                    (acinfo               AttributeCertificateInfo)
-                   (signatureAlgorithm   AlgorithmIdentifier)
+                   (signatureAlgorithm   (AlgorithmIdentifier SIGNING))
                    (signatureValue       BIT-STRING)))
 
   (define-asn1-type AttributeCertificateInfo (SEQUENCE
                 (version        AttCertVersion)
                 (holder         Holder)
                 (issuer         AttCertIssuer)
-                (signature      AlgorithmIdentifier)
+                (signature      (AlgorithmIdentifier SIGNING))
                 (erialNumber   CertificateSerialNumber)
                 (attrCertValidityPeriod   AttCertValidityPeriod)
                 (attributes     (SEQUENCE-OF NameAttribute))
@@ -57,23 +86,23 @@
                    (objectDigestInfo  #:explicit 2 ObjectDigestInfo #:optional)))
 
   (define-asn1-type ObjectDigestInfo  (SEQUENCE 
-                   (digestedObjectType  (ENUMERATED
+                   (digestedObjectType  (WRAP-NAMES ENUMERATED
                                          (list
                                           (cons 'publicKey 0)
                                           (cons 'publicKeyCert 1)
                                           (cons 'otherObjectTypes 2))))
                        (otherObjectTypeID   OBJECT-IDENTIFIER #:optional)
-                   (digestAlgorithm     AlgorithmIdentifier)
+                   (digestAlgorithm     (AlgorithmIdentifier SIGNING))
                    (objectDigest        BIT-STRING)))
 
   (define-asn1-type AttCertIssuer (CHOICE
-                   (v1Form   GeneralNames)
-                   (v2Form   V2Form)))
+                   (v1Form   #:implicit 0 GeneralNames)
+                   (v2Form   #:implicit 1 V2Form-seq)))
 
   
 
- (define-asn1-type V2Form  (SEQUENCE
-                   (issuerName         GeneralNames #:optional)
+ (define-asn1-type V2Form-seq  (SEQUENCE
+                   (issuerName         GeneralNames)
                    (baseCertificateID   #:explicit 0 IssuerSerial  #:optional)
                    (objectDigestInfo    #:explicit 1 ObjectDigestInfo #:optional)))
                       ;;-- issuerName MUST be present in this profile
@@ -169,7 +198,7 @@
 
  (define-asn1-type AttributeCertificateV1  (SEQUENCE 
      (acInfo AttributeCertificateInfoV1)
-     (signatureAlgorithm AlgorithmIdentifier)
+     (signatureAlgorithm (AlgorithmIdentifier SIGNING))
      (signature BIT-STRING)))
 
   (define-asn1-type AttributeCertificateInfoV1 (SEQUENCE 
@@ -180,7 +209,7 @@
        (subjectName #:explicit 1 GeneralNames)))
          ;;-- associated with a name
      (issuer GeneralNames)
-     (signature AlgorithmIdentifier)
+     (signature (AlgorithmIdentifier SIGNING))
      (serialNumber CertificateSerialNumber)
      (attCertValidityPeriod AttCertValidityPeriod)
      (attributes (SEQUENCE-OF Attribute))
@@ -190,12 +219,15 @@
 ;;================================================================================================
 ;; X509 Certificate definition
 
-(define Validity (SEQUENCE (notBefore GeneralizedTime) (notAfter GeneralizedTime)))
+(define Time (CHOICE (utcTime UTCTime) (generalTime GeneralizedTime)))
+(define Validity (SEQUENCE (notBefore Time) (notAfter Time)))
+(define SubjectPublicKeyInfo/DER ANY/DER)
+
 (define-asn1-type Certificate
   (SEQUENCE
    (tbsCertificate TBSCertificate)
-   (signatureAlgorithm AlgorithmIdentifier/DER)
-   (signature BIT-STRING #:optional)))
+   (signatureAlgorithm AlgorithmIdentifier/DER);;AlgorithmIdentifier/DER)
+   (signatureValue BIT-STRING)))
 
 (define-asn1-type TBSCertificate
   (SEQUENCE
@@ -205,7 +237,7 @@
    (issuer Name)
    (validity Validity)
    (subject Name)
-   (subjectPublicKeyInfo ANY/DER)
+   (subjectPublicKeyInfo SubjectPublicKeyInfo/DER)
    (issuerUniqueID #:implicit 1 UniqueIdentifier #:optional)
    (subjectUniqueID #:implicit 2 UniqueIdentifier #:optional)
    (extensions #:explicit 3 Extensions #:optional)))
@@ -220,8 +252,8 @@
 ;; ExtendedCertificate defrinition
 
 ;;Certificate definitions
-(define DigestAlgorithmIdentifier AlgorithmIdentifier)
-(define SignatureAlgorithmIdentifier AlgorithmIdentifier)
+(define DigestAlgorithmIdentifier (AlgorithmIdentifier SIGNING))
+(define SignatureAlgorithmIdentifier (AlgorithmIdentifier SIGNING))
 (define-asn1-type UnauthAttributes (SET-OF Attribute))
 
 (define-asn1-type ExtendedCertificateOrCertificate (CHOICE
@@ -247,34 +279,7 @@
    (signatureAlgorithm (AlgorithmIdentifier SIGNING))
    (signature BIT-STRING)))
 
-(define SIGNING
-  (relation
-   #:heading
-   ['oid                    'pk  'digest 'params  'params-presence]
-   #:tuples
-   ;; From RFC 5912:
-   [md5WithRSAEncryption    'rsa 'md5    NULL     'required]
-   [sha1WithRSAEncryption   'rsa 'sha1   NULL     'required]
-   [sha224WithRSAEncryption 'rsa 'sha224 NULL     'required]
-   [sha256WithRSAEncryption 'rsa 'sha256 NULL     'required]
-   [sha384WithRSAEncryption 'rsa 'sha384 NULL     'required]
-   [sha512WithRSAEncryption 'rsa 'sha512 NULL     'required]
-   [id-RSASSA-PSS           'rsa #f      RSASSA-PSS-params 'required]
-   [dsa-with-sha1           'dsa 'sha1   NULL     'absent]
-   [id-dsa-with-sha224      'dsa 'sha224 NULL     'absent]
-   [id-dsa-with-sha256      'dsa 'sha256 NULL     'absent]
-   [id-dsa-with-sha384      'dsa 'sha384 NULL     'absent]
-   [id-dsa-with-sha512      'dsa 'sha512 NULL     'absent]
-   [ecdsa-with-SHA1         'ec  'sha1   NULL     'absent]
-   [ecdsa-with-SHA224       'ec  'sha224 NULL     'absent]
-   [ecdsa-with-SHA256       'ec  'sha256 NULL     'absent]
-   [ecdsa-with-SHA384       'ec  'sha384 NULL     'absent]
-   [ecdsa-with-SHA512       'ec  'sha512 NULL     'absent]
 
-   ;; From RFC 8410:
-   [id-Ed25519              'eddsa #f    #f       'absent]
-   [id-Ed448                'eddsa #f    #f       'absent]
-   ))
 
 
    

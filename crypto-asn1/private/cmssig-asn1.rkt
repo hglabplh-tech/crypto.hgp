@@ -66,6 +66,8 @@
 
 (define MessageAuthenticationCodeAlgorithm (AlgorithmIdentifier SIGNING))
 
+(define DefaultAlgorithm (AlgorithmIdentifier SIGNING))
+
 
 
 
@@ -78,8 +80,8 @@
 
  (define-asn1-type ContentInfo (SEQUENCE 
         (contentType ContentType)        
-        (content #:explicit 0 #:dependent (cond [(eq? contentType id-cms-enveloped-data) EnvelopedData]
-                                                [(eq? contentType id-cms-signed-data) SignedData]
+        (content #:explicit 0 #:dependent (cond [(equal? contentType id-cms-enveloped-data) EnvelopedData]
+                                                [(equal? contentType id-cms-signed-data) SignedData]
                                                 [else ANY]))))
 
  (define ContentType OBJECT-IDENTIFIER)
@@ -88,14 +90,15 @@
  (define-asn1-type SignerIdentifier  (CHOICE
         (issuerAndSerialNumber IssuerAndSerialNumber)
          (subjectKeyIdentifier SubjectKeyIdentifier) ))
+
 (define-asn1-type SignerInfo (SEQUENCE
         (version CMSVersion)
         (sid SignerIdentifier)
-        (digestAlgorithm (AlgorithmIdentifier SIGNING))
-        (signedAttrs #:implicit 1 SignedAttributes #:optional)
-        (signatureAlgorithm (AlgorithmIdentifier SIGNING))
+        (digestAlgorithm AlgorithmIdentifier/DER)
+        (signedAttrs #:implicit 0 SignedAttributes #:optional)
+        (signatureAlgorithm AlgorithmIdentifier/DER)
         (signature SignatureValue)
-        (unsignedAttrs #:implicit 2 UnsignedAttributes #:optional)))
+        (unsignedAttrs #:implicit 1 UnsignedAttributes #:optional)))
 
 
   (define-asn1-type RevocationInfoChoices (SET-OF RevocationInfoChoice))
@@ -303,7 +306,7 @@
 
  (define SignedData (SEQUENCE 
         (version CMSVersion)
-        (digestAlgorithms (AlgorithmIdentifier SIGNING))
+        (digestAlgorithms DigestAlgorithmIdentifiers)
         (encapContentInfo EncapsulatedContentInfo)
         (certificates #:implicit 0 CertificateSet #:optional)
         (crls #:implicit 1 RevocationInfoChoices #:optional)

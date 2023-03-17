@@ -12,10 +12,13 @@
        )
        (b-read-bytes reader file-size)
        )))
-(define test(lambda (fname)
+(define test-Bytes->ASN1(lambda (fname)
               (let ([bytes (read-bytes-from-file fname)])
-                (bytes->asn1 ContentInfo bytes))))
+                (bytes->asn1/DER ContentInfo bytes))))
 
 
-(displayln id-cms-auth-enveloped-data)
-(test "data/cms-sig-ext.pkcs7")
+(displayln id-cms-enveloped-data)
+(displayln id-cms-signed-data)
+(define out (test-Bytes->ASN1 "data/cms-sig-ext.pkcs7"))
+(displayln out)
+(asn1->bytes/DER ContentInfo  out)
