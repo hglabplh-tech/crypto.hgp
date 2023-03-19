@@ -16,7 +16,8 @@
 #lang racket/base
 (require asn1 asn1/util/names
          "error.rkt")
-(provide (all-defined-out))
+(provide (all-defined-out)
+         relation-ref)
 
 ;; define relations
 
@@ -642,6 +643,7 @@
    (rid #:implicit 12 OBJECT-IDENTIFIER)       ;;/* registeredID */
    (other #:implicit 13 ORAddress)     ;; /* x400Address */
          	#:extensible not-defined-general-name))
+;; FIXME!!! here we have to find the missing definitions to have it clear extensible is only a dirty fix
 (define-asn1-type AnotherName
   (SEQUENCE
    (type-id OBJECT-IDENTIFIER)
@@ -777,9 +779,13 @@
 (define UniqueIdentifier BIT-STRING)
 
 (define AttributeType OBJECT-IDENTIFIER)
+
 (define (NameAttributeValue attr-oid)
   (or (relation-ref ATTRIBUTES 'oid attr-oid 'type) ANY))
-(define AttributeValue ANY)
+
+(define (AttributeValue attr-oid)
+  (or (relation-ref ATTRIBUTES 'oid attr-oid 'type) ANY))
+
 (define NameAttribute
   (SEQUENCE
    (type AttributeType)
@@ -864,6 +870,9 @@
 (define OrganizationalUnitName PrintableString)
 (define RelativeDistinguishedName (SET-OF AttributeTypeAndValue))
 (define RDNSequence (SEQUENCE-OF RelativeDistinguishedName))
+(define-asn1-type CertName (CHOICE ;;-- only one possibility for now --
+     [rdnSequence  RDNSequence]))
+
 
 (define-asn1-type BuiltInDomainDefinedAttributes (SEQUENCE-OF BuiltInDomainDefinedAttribute))
 (define BuiltInDomainDefinedAttribute

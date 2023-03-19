@@ -45,6 +45,17 @@
 
  (define id-cms-auth-compressed-data (build-OID rsadsi (pkcs 1) 9 16 1 9))
 
+;; signed attributes OIDS
+(define id-smime-capabilities (build-OID rsadsi (pkcs 1) 9 15))
+         ;;{iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1)
+         ;;pkcs-9(9) 15}
+(define id-content-type (build-OID rsadsi (pkcs 1) 9 3))
+(define id-message-digest (build-OID rsadsi (pkcs 1) 9 4))
+(define id-signing-time (build-OID rsadsi (pkcs 1) 9 5))
+(define id-counter-signature (build-OID rsadsi (pkcs 1) 9 6))
+      
+
+
 ;;algorithm and other identifiers..... and primitive definitions
 
 (define MessageDigest OCTET-STRING)
@@ -52,37 +63,51 @@
      (utcTime UTCTime)
      (generalTime GeneralizedTime)))
 
+(define-asn1-type Parameters (CHOICE
+     (string OCTET-STRING)
+     (int-val INTEGER)))
+
  (define SigningTime  Time)
 
- 
-
-(define-asn1-type Countersignature SignerInfo)
-
-(define ContentEncryptionAlgorithmIdentifier (AlgorithmIdentifier SIGNING))
-
-(define KeyEncryptionAlgorithmIdentifier  (AlgorithmIdentifier SIGNING))
-
-(define KeyDerivationAlgorithmIdentifier (AlgorithmIdentifier SIGNING))
-
-(define MessageAuthenticationCodeAlgorithm (AlgorithmIdentifier SIGNING))
-
-(define DefaultAlgorithm (AlgorithmIdentifier SIGNING))
+  (define-asn1-type SMIMECapability (SEQUENCE 
+         [capabilityID OBJECT-IDENTIFIER]
+         [parameters Parameters #:optional])) ;; have to add #:dependent instead of ANY  !!!FIXME!!!
 
 
 
+ (define-asn1-type SMIMECapabilities (SEQUENCE-OF SMIMECapability))
 
+    
+
+
+
+(define ContentEncryptionAlgorithmIdentifier AlgorithmIdentifier/DER)
+
+(define KeyEncryptionAlgorithmIdentifier  AlgorithmIdentifier/DER)
+
+(define KeyDerivationAlgorithmIdentifier AlgorithmIdentifier/DER)
+
+(define MessageAuthenticationCodeAlgorithm AlgorithmIdentifier/DER)
+
+(define DefaultAlgorithm AlgorithmIdentifier/DER)
+
+
+;;FIXME!! add specific Algorithm Identifier types
 ;;
 ;;=====================================================================================
 ;; the ASN1 structures for CMS signatures
 ;;=====================================================================================
 
+(define-asn1-type CounterSignature SignerInfo)
 
+
+
+(define (ContentInfoValue attr-oid)
+  (or (relation-ref CONTENTINFO-VALUES 'oid attr-oid 'type) ANY))
 
  (define-asn1-type ContentInfo (SEQUENCE 
         (contentType ContentType)        
-        (content #:explicit 0 #:dependent (cond [(equal? contentType id-cms-enveloped-data) EnvelopedData]
-                                                [(equal? contentType id-cms-signed-data) SignedData]
-                                                [else ANY]))))
+        (content #:explicit 0 #:dependent (ContentInfoValue contentType))))
 
  (define ContentType OBJECT-IDENTIFIER)
 
@@ -126,7 +151,7 @@
 
   (define-asn1-type CertificateSet (SET-OF CertificateChoices))
 
-  (define-asn1-type  DigestAlgorithmIdentifiers (SET-OF (AlgorithmIdentifier SIGNING)))
+  (define-asn1-type  DigestAlgorithmIdentifiers (SET-OF AlgorithmIdentifier/DER))
 
   (define SignerInfos (SET-OF SignerInfo))
 
@@ -149,10 +174,34 @@
         (eContentType ContentType)
         (eContent #:explicit 0  OCTET-STRING #:optional)))
 
+(define-asn1-type smime-cap-attr-type      (SET-OF SMIMECapabilities))
+(define-asn1-type content-attr-type        (SET-OF OBJECT-IDENTIFIER))
+(define-asn1-type md-attr-type             (SET-OF OCTET-STRING))
+(define-asn1-type signing-time-attr-type   (SET-OF Time))
+(define-asn1-type counter-sig-attr-type    (SET-OF CounterSignature))
+
+(define CMS-ATTRIBUTES
+  (relation
+   #:heading
+   ['oid                         'type]
+   #:tuples
+   [id-smime-capabilities        smime-cap-attr-type]
+   [id-content-type              content-attr-type]
+   [id-message-digest            md-attr-type]
+   [id-signing-time              signing-time-attr-type ]
+   [id-counter-signature         counter-sig-attr-type]
+   
+   ))
+
+ 
+
+(define (CmsAttributeValue attr-oid)
+  (or (relation-ref CMS-ATTRIBUTES 'oid attr-oid 'type) ANY))
+
  (define-asn1-type CmsAttribute (SEQUENCE 
         (attrType OBJECT-IDENTIFIER)
-        (attrValues (SET-OF AttributeValue))))
-
+        (attrValues #:dependent
+                    (CmsAttributeValue attrType))))
 
   (define SignedAttributes (SET-OF CmsAttribute))
 
@@ -167,7 +216,7 @@
   (define SubjectKeyIdentifier OCTET-STRING)
 
   (define IssuerAndSerialNumber (SEQUENCE
-                                 (issuer Name)
+                                 (issuer CertName)
                                  (serialNumber INTEGER)))
 
 
@@ -193,7 +242,7 @@
 
 (define EncryptedContentInfo (SEQUENCE 
      (contentType ContentType)
-     (contentEncryptionAlgorithm (AlgorithmIdentifier SIGNING))
+     (contentEncryptionAlgorithm AlgorithmIdentifier/DER)
      (encryptedContent #:implicit 0 EncryptedContent #:optional)))
 
   
@@ -208,7 +257,7 @@
 (define-asn1-type KeyTransRecipientInfo (SEQUENCE 
         (version CMSVersion)  ;;-- always set to 0 or 2
         (rid RecipientIdentifier)
-        (keyEncryptionAlgorithm (AlgorithmIdentifier SIGNING))
+        (keyEncryptionAlgorithm AlgorithmIdentifier/DER)
         (encryptedKey EncryptedKey)))
 
 (define-asn1-type RecipientIdentifier (CHOICE 
@@ -219,7 +268,7 @@
         (version CMSVersion)  ;;-- always set to 3
         (originator #:explicit 0 OriginatorIdentifierOrKey)
         (ukm #:explicit 1 UserKeyingMaterial #:optional)
-        (keyEncryptionAlgorithm (AlgorithmIdentifier SIGNING))
+        (keyEncryptionAlgorithm AlgorithmIdentifier/DER)
         (recipientEncryptedKeys RecipientEncryptedKeys)))
 
 (define-asn1-type UserKeyingMaterial OCTET-STRING)
@@ -249,13 +298,13 @@
         (originatorKey #:explicit 1 OriginatorPublicKey)))
 
   (define-asn1-type OriginatorPublicKey (SEQUENCE
-        (algorithm (AlgorithmIdentifier SIGNING))
+        (algorithm AlgorithmIdentifier/DER)
         (publicKey BIT-STRING)))
 
 (define-asn1-type KEKRecipientInfo (SEQUENCE 
         (version CMSVersion)  ;;-- always set to 4
         (kekid KEKIdentifier)
-        (keyEncryptionAlgorithm (AlgorithmIdentifier SIGNING))
+        (keyEncryptionAlgorithm AlgorithmIdentifier/DER)
         (encryptedKey EncryptedKey)))
 
  (define-asn1-type KEKIdentifier (SEQUENCE 
@@ -269,9 +318,9 @@
 
 (define-asn1-type PasswordRecipientInfo (SEQUENCE 
         (version CMSVersion)   ;;-- Always set to 0
-        (keyDerivationAlgorithm #:explicit 0 (AlgorithmIdentifier SIGNING)
+        (keyDerivationAlgorithm #:explicit 0 AlgorithmIdentifier/DER
                                      #:optional)
-        (keyEncryptionAlgorithm (AlgorithmIdentifier SIGNING))
+        (keyEncryptionAlgorithm AlgorithmIdentifier/DER)
         (encryptedKey EncryptedKey)))
 
 (define-asn1-type OtherRecipientInfo (SEQUENCE
@@ -291,26 +340,41 @@
         (originatorInfo #:implicit 0 OriginatorInfo #:optional)
         (recipientInfos RecipientInfos)
         (macAlgorithm MessageAuthenticationCodeAlgorithm)
-        (digestAlgorithm #:explicit 1 (AlgorithmIdentifier SIGNING) #:optional)
+        (digestAlgorithm #:explicit 1 AlgorithmIdentifier/DER #:optional)
         (encapContentInfo EncapsulatedContentInfo)
         (authAttrs #:implicit 2 AuthAttributes #:optional)
         (mac MessageAuthenticationCode)
         (unauthAttrs #:implicit 3 UnauthAttributes #:optional)))
 
-(define EnvelopedData (SEQUENCE
+(define-asn1-type EnvelopedData (SEQUENCE
      (version CMSVersion)
      (originatorInfo #:implicit 0 OriginatorInfo #:optional)
      (recipientInfos RecipientInfos)
      (encryptedContentInfo EncryptedContentInfo)
      (unprotectedAttrs #:implicit 1 UnprotectedAttributes #:optional)))
 
- (define SignedData (SEQUENCE 
+ (define-asn1-type SignedData (SEQUENCE 
         (version CMSVersion)
         (digestAlgorithms DigestAlgorithmIdentifiers)
         (encapContentInfo EncapsulatedContentInfo)
         (certificates #:implicit 0 CertificateSet #:optional)
         (crls #:implicit 1 RevocationInfoChoices #:optional)
         (signerInfos SignerInfos)))
+
+ (define-asn1-type EncryptedData (SEQUENCE 
+        [version CMSVersion]
+        [encryptedContentInfo EncryptedContentInfo]
+        [unprotectedAttrs #:implicit 1 UnprotectedAttributes #:optional]))
+
+(define CONTENTINFO-VALUES
+  (relation
+   #:heading
+   ['oid                         'type]
+   #:tuples
+   [id-cms-enveloped-data        EnvelopedData]
+   [ id-cms-signed-data          SignedData]
+   [id-cms-encrypted-data        EncryptedData]   
+   ))
 
  
 
