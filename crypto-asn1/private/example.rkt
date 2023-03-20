@@ -1,5 +1,6 @@
 #lang racket/base
 (require "cmssig-asn1.rkt"
+         "asn1-to-classes.rkt"
          asn1
           binaryio/reader
          rnrs/io/ports-6)
@@ -19,8 +20,13 @@
 
 (displayln id-cms-enveloped-data)
 (displayln id-cms-signed-data)
-(test-Bytes->ASN1 "data/cms-sig-ext.pkcs7")
-(displayln "=============================================================")
-(test-Bytes->ASN1 "data/cms-envelop-ext.pkcs7")
-(displayln "=============================================================")
-(test-Bytes->ASN1 "data/cms-encrypt-ext.pkcs7")
+(map (find-value-element-proc 'attrValues) (car (map  (find-value-element-proc 'signedAttrs)
+     ((find-value-element-proc 'content 'signerInfos)
+      (test-Bytes->ASN1 "data/cms-sig-ext.pkcs7")))))
+;;(displayln "=============================================================")
+;;(test-Bytes->ASN1 "data/cms-envelop-ext.pkcs7")
+;;(displayln "=============================================================")
+;;(test-Bytes->ASN1 "data/cms-encrypt-ext.pkcs7")
+
+
+                           
