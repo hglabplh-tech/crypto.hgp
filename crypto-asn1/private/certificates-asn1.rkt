@@ -30,6 +30,8 @@
 
 ;;==================================================================================================
 ;;Attribute certificate V2
+
+(define Time (CHOICE (utcTime UTCTime) (generalTime GeneralizedTime)))
 (define SIGNING
   (relation
    #:heading
@@ -117,8 +119,8 @@
              
 
  (define-asn1-type AttCertValidityPeriod (SEQUENCE 
-                   (notBeforeTime  GeneralizedTime)
-                   (notAfterTime   GeneralizedTime)))
+                   (notBeforeTime Time)
+                   (notAfterTime   Time)))
 
  (define-asn1-type Targets (SEQUENCE-OF Target))
 
@@ -219,7 +221,7 @@
 ;;================================================================================================
 ;; X509 Certificate definition
 
-(define Time (CHOICE (utcTime UTCTime) (generalTime GeneralizedTime)))
+
 (define Validity (SEQUENCE (notBefore Time) (notAfter Time)))
 (define SubjectPublicKeyInfo/DER ANY/DER)
 

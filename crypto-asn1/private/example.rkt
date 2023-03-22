@@ -2,7 +2,8 @@
 (require "cmssig-asn1.rkt"
          "asn1-to-classes.rkt"
          asn1
-          binaryio/reader
+         racket/class
+         binaryio/reader
          rnrs/io/ports-6)
 
  (define read-bytes-from-file
@@ -20,9 +21,20 @@
 
 (displayln id-cms-enveloped-data)
 (displayln id-cms-signed-data)
-(map (find-value-element-proc 'attrValues) (car (map  (find-value-element-proc 'signedAttrs)
-     ((find-value-element-proc 'content 'signerInfos)
-      (test-Bytes->ASN1 "data/cms-sig-ext.pkcs7")))))
+(define get-auth-attr (lambda (clazz)
+                        (send clazz get-auth-attributes)))
+
+(let* ([bytes (read-bytes-from-file  "data/cms-sig-ext.pkcs7")]
+       [signed-data (new signed-data% (der bytes))]
+       [sig-info-list (send signed-data get-signer-infos)])  
+  (displayln sig-info-list)
+  (map get-auth-attr sig-info-list))
+
+
+
+;;(map (find-value-element-proc 'attrValues) (car (map  (find-value-element-proc 'signedAttrs)
+;;     ((find-value-element-proc 'content 'signerInfos)
+;;      (test-Bytes->ASN1 "data/cms-sig-ext.pkcs7")))))
 ;;(displayln "=============================================================")
 ;;(test-Bytes->ASN1 "data/cms-envelop-ext.pkcs7")
 ;;(displayln "=============================================================")

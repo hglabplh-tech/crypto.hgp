@@ -17,7 +17,7 @@
 (require asn1
          "basesig-asn1.rkt" "certificates-asn1.rkt")
 (provide (all-defined-out)
-         Name GeneralName GeneralNames)
+         Name GeneralName GeneralNames UnauthAttributes)
 ;;=======================================================================================
 ;; CMS signature (former pkcs7) definitions to build the asn1 signature structures for serialize / deserialice
 ;;========================================================================================
@@ -59,9 +59,6 @@
 ;;algorithm and other identifiers..... and primitive definitions
 
 (define MessageDigest OCTET-STRING)
-(define-asn1-type Time (CHOICE
-     (utcTime UTCTime)
-     (generalTime GeneralizedTime)))
 
 (define-asn1-type Parameters (CHOICE
      (string OCTET-STRING)
@@ -156,8 +153,7 @@
   (define SignerInfos (SET-OF SignerInfo))
 
 (define-asn1-type AuthAttributes (SET-OF Attribute))
-
- (define-asn1-type UnauthAttributes (SET-OF Attribute))
+ 
 
  (define-asn1-type MessageAuthenticationCode OCTET-STRING)
 (define-asn1-type EncryptedContent OCTET-STRING)
@@ -372,7 +368,7 @@
    ['oid                         'type]
    #:tuples
    [id-cms-enveloped-data        EnvelopedData]
-   [ id-cms-signed-data          SignedData]
+   [id-cms-signed-data           SignedData]
    [id-cms-encrypted-data        EncryptedData]   
    ))
 

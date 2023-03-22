@@ -78,6 +78,7 @@
      (case->m (-> (listof x509-general-name/c))
               (-> (or/c #f x509-general-name-tag/c)
                   (or/c (listof string?) (listof x509-general-name/c))))]
+    [get-validity-date-time (->m (list/c date? date?))]
     [get-validity-seconds (->m (list/c exact-integer? exact-integer?))]
 
     [get-subject-name-string (->m string?)]

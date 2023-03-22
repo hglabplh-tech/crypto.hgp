@@ -111,6 +111,9 @@
                  #:when (equal? (hash-ref ad 'accessMethod) id-ad-ocsp))
         (hash-ref ad 'accessLocation)))
 
+    (define/public (get-validity-date-time)
+      (map seconds->date (get-validity-seconds)))
+
     (define/public (get-validity-seconds)
       (match (get-validity)
         [(hash-table ['notBefore ok-start] ['notAfter ok-end])
