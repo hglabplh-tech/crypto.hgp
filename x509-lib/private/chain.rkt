@@ -129,6 +129,9 @@
         max-path-length))
 
     ;; get-validity-seconds : -> (list Seconds Seconds)
+    (define/public (get-validity-date-time)
+      (map seconds->date (get-validity-seconds)))
+    
     (define/public (get-validity-seconds)
       (list valid-from-time valid-to-time))
 

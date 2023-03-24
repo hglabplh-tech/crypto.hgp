@@ -23,12 +23,12 @@
                asn1-representation]
               [else (raise (list 'exn:cms:signed-data "invalid input for ASN1 signed data"))]))) ;; fixme use struct exn as in x509
 
-    (define/public (get-certificates-set)
+    (define/public (get-certificate-set)
       (let* ([signed-data (der->asn1)]
              [cert-data (hash-ref signed-data 'certificates #f)])
         (cond [(not (equal? cert-data #f))
                (let ([cert-list (map bytes->certificate
-                                     (map asn1->bytes/DER cert-data))])
+                                     (map x509-from-choice->DER cert-data))])
                  cert-list)]
               [else #f])))
     
@@ -58,21 +58,147 @@
   (class* object% (signer-info<%>)
     (init-field asn1)
     (super-new)
+    
     (define/public (get-auth-attributes)
-      (hash-ref asn1 'signedAttrs #f)
-      )
+      (hash-ref asn1 'signedAttrs #f))
+      
+    (define/public (get-unauth-attributes)
+      (hash-ref asn1 'unsignedAttrs #f))
+
+    (define/public (get-issuer-and-serial)
+      (let ([issuer-and-serial (cadr
+                                ((find-value-element-proc 'issuerAndSerialNumber)
+                                 (hash-ref asn1 'sid)))])
+        (asn1->issuer-and-serial issuer-and-serial)))
     ))
+
+(define issuer-and-serial%
+  (class* object% (issuer-and-serial<%>)
+    (init-field asn1)
+    (super-new)
+    
+    (define/public (get-serial-number)
+      (hash-ref asn1 'serialNumber #f))
+
+    (define/public (get-issuer) 
+      (let* ([issuer-raw (hash-ref asn1 'issuer)]
+             [name-attr-list (cond [(not (equal? issuer-raw #f))
+                                    (issuer-raw->name-attr-list issuer-raw)])])        
+        (map asn1->name name-attr-list)
+        ))
+    ))
+
+(define name%
+  (class* object% (name<%>)
+    (init-field asn1)
+    (super-new)
+    
+    (define/public (get-attributes)     
+      (map asn1->name-attribute (car asn1)))
+
+    (define/public (get-attribute-value type)      
+      (get-value-by-type type))
+
+    (define/public (attribute-value->string type)
+      (let ([value (get-value-by-type type)])
+        (cond [(and value (pair? value))
+               (cadr value)]
+              [else value])))
+    
+     (define/public (get-name-normalized)
+      (let ([attributes (map asn1->name-attribute asn1)])
+        (cond [(not (null? attributes))
+               (let recur-attrs
+                 ([attrs attributes]
+                  [complete-string ""])
+                 (cond [(not (null? attrs))
+                        (let* ([type (send (car attrs) get-type)]
+                               [type-string   (hash-ref  name-oid-to-string type #f)]
+                               [value (send (car attrs) get-value)]
+                               [val-string  (cond [(and value (pair? value))
+                                                   (cadr value)]
+                                                  [else value])]
+                               [complete-string (string-append
+                                                 complete-string 
+                                                 type-string "=" val-string ",")])
+                          (recur-attrs (cdr attrs ) complete-string)
+                          )]                   
+                       [else (substring complete-string 0 (- (string-length complete-string) 1))]))]
+              [else #f])))         
+                      
+
+    (define/private (get-value-by-type type)
+      (let ([attributes (map asn1->name-attribute asn1)])
+        (cond [(not (null? attributes))
+               (let recur-attrs
+                 ([attrs attributes])
+                 (cond [(and (not (null? attrs))
+                             (equal? type (send (car attrs) get-type)))
+                        (send (car attrs) get-value)]
+                       [(not (null? attrs))
+                        (recur-attrs (cdr attrs))]
+                       [else #f]))]
+              [else #f])))
+
+          
+      
+    ))
+
+
+
+(define name-attribute%
+  (class* object% (name-attribute<%>)
+    (init-field asn1)
+    (super-new)
+    
+    (define/public (get-type)
+      (hash-ref (car asn1) 'type #f))
+
+    (define/public (get-value)
+      (hash-ref (car asn1) 'value #f))
+    ))
+
+
         
       
 ;; class instantiation and getters
 (define asn1->signer-info
   (lambda (asn1-data)
     (new signer-info% (asn1 asn1-data))))
-                                    
-                  
-    
 
+(define asn1->issuer-and-serial
+  (lambda (asn1-data)
+    (new issuer-and-serial% (asn1 asn1-data))))
+
+(define asn1->name-attribute
+  (lambda (asn1-data)
+    (new name-attribute% (asn1 asn1-data))))
+
+(define asn1->name
+  (lambda (asn1-data)
+    (new name% (asn1 asn1-data))))
+
+(define issuer-raw->name-attr-list
+  (lambda (issuer-raw)
+    (let ([rdn (cdr ((find-value-element-proc 'rdnSequence)
+                     issuer-raw))])
+     
+      rdn)))
+                
+;; different complex getter helpers
+
+(define x509-from-choice->DER
+  (lambda (cert-set-member)
+    
+    (let ([certificate  (cadr ((find-value-element-proc 'certificate) cert-set-member))])     
+      ( asn1->bytes/DER Certificate certificate))))
+
+ 
+  
+  
 ;;tools
+
+
 
     
 (define find-value-element (lambda (content  varargs)
@@ -84,7 +210,9 @@
                                       [found-content (cond [(hash? content-to-work) (hash-ref content-to-work element #f)]
                                                            [else (cond [(not (andmap pair? content-to-work))
                                                                         content-to-work]
-                                                                       [(assoc element content-to-work)
+                                                                       [(not
+                                                                         (equal?
+                                                                          (assoc element content-to-work) #f))
                                                                         (cadr(assoc element content-to-work))]
                                                                        [else #f])])])
                                  (cond [found-content

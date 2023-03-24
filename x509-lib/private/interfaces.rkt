@@ -124,6 +124,7 @@
     [get-index (->m exact-nonnegative-integer?)]
     [get-max-path-length (->m (or/c #f exact-integer?))]
     [get-validity-seconds (->m (list/c time/c time/c))]
+    [get-validity-date-time (->m (list/c date? date?))]
 
     ;; Security level of self chain
     [get-security-level (->m security-level/c)]

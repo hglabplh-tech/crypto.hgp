@@ -14,11 +14,24 @@
 (define (signer-info? v) (is-a? v signer-info<%>))
 (define signed-data<%>
   (interface ()    
-    [get-certificates-set (->m certificate?)]
+    [get-certificate-set (->m (or/c boolean? (listof certificate?)))]
     [get-signer-infos     (->m (or/c boolean? (listof signer-info?)))]
-    
     ))
 
 (define signer-info<%>
   (interface ()
-    [get-auth-attributes     (->m list?)])) ;;enhance to listof
+    [get-auth-attributes       (->m (or/c boolean? list?))] ;;enhance to listof
+    [get-unauth-attributes     (->m (or/c boolean? list?))]
+    )) ;;enhance to listof
+
+(define issuer-and-serial<%>
+  (interface ()
+    ))
+
+(define name<%>
+  (interface ()
+    ))
+
+(define name-attribute<%>
+  (interface ()
+    ))
