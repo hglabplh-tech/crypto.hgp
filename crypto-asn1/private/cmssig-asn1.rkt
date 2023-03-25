@@ -15,7 +15,9 @@
 
 #lang racket/base
 (require asn1
-         "basesig-asn1.rkt" "certificates-asn1.rkt")
+         "basesig-asn1.rkt"
+         "certificates-asn1.rkt"
+         "asn1-oids.rkt")
 (provide (all-defined-out)
          Name GeneralName
          GeneralNames
@@ -40,7 +42,7 @@
 ;;=======================================================================================
 ;; CMS signature (former pkcs7) definitions to build the asn1 signature structures for serialize / deserialice
 ;;========================================================================================
-
+;;FIXME : add the latest definitions too and change a few definitions to fit the latest specification changes
 ;;=======================================================================================
 ;; the OIDs for cms signatures
 ;;=======================================================================================
@@ -64,14 +66,7 @@
 
 (define id-cms-auth-compressed-data (build-OID rsadsi (pkcs 1) 9 16 1 9))
 
-;; signed attributes OIDS
-(define id-smime-capabilities (build-OID rsadsi (pkcs 1) 9 15))
-;;{iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1)
-;;pkcs-9(9) 15}
-(define id-content-type (build-OID rsadsi (pkcs 1) 9 3))
-(define id-message-digest (build-OID rsadsi (pkcs 1) 9 4))
-(define id-signing-time (build-OID rsadsi (pkcs 1) 9 5))
-(define id-counter-signature (build-OID rsadsi (pkcs 1) 9 6))
+
       
 
 
@@ -80,7 +75,7 @@
 (define MessageDigest OCTET-STRING)
 
 (define-asn1-type Parameters (CHOICE
-                              (string OCTET-STRING)
+                              (octet-string OCTET-STRING)
                               (int-val INTEGER)))
 
 (define SigningTime  Time)

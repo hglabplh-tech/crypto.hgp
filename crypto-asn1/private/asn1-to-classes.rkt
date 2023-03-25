@@ -1,6 +1,7 @@
 #lang racket/base
 
 (require racket/class asn1
+         racket/date
          racket/match
          racket/list         
          racket/serialize
@@ -9,6 +10,7 @@
          asn1/util/time
          "interfaces.rkt"
          "cmssig-asn1.rkt"
+         "asn1-utils.rkt"
          "certificates-asn1.rkt")
 (provide (all-defined-out))
 
@@ -60,7 +62,9 @@
     (super-new)
     
     (define/public (get-auth-attributes)
-      (hash-ref asn1 'signedAttrs #f))
+      (let ([signed-attrs (hash-ref asn1 'signedAttrs #f)])
+        (map signed-attr->values-list signed-attrs)))
+
       
     (define/public (get-unauth-attributes)
       (hash-ref asn1 'unsignedAttrs #f))
@@ -105,7 +109,7 @@
                (cadr value)]
               [else value])))
     
-     (define/public (get-name-normalized)
+    (define/public (get-name-normalized)
       (let ([attributes (map asn1->name-attribute asn1)])
         (cond [(not (null? attributes))
                (let recur-attrs
@@ -184,6 +188,36 @@
                      issuer-raw))])
      
       rdn)))
+
+;; caller of class methods to use with map for lists
+(define get-auth-attr (lambda (clazz)
+                        (send clazz get-auth-attributes)))
+(define get-unauth-attr (lambda (clazz)
+                          (send clazz get-unauth-attributes)))
+(define get-cert-validity (lambda (clazz)
+                            (let ([validity (send clazz get-validity-date-time)])
+                              (map date->string validity))))
+(define get-issuer-and-serial (lambda (clazz)
+                                (send clazz get-issuer-and-serial)))
+(define get-serial-number (lambda (clazz)
+                            (send clazz get-serial-number)))
+
+(define get-issuer (lambda (clazz)
+                     (send clazz get-issuer)))
+
+(define get-name-attributes (lambda (clazz)
+                              (send (car clazz) get-attributes)))
+
+(define get-attrval-by-type (lambda (type)
+                              (lambda (clazz)
+                                (send (car clazz) get-attribute-value type))))
+
+(define attribute-value->string (lambda (type)
+                                  (lambda (clazz)
+                                    (send (car clazz) attribute-value->string type))))
+
+(define get-name-normalized (lambda (clazz)
+                              (send (car clazz) get-name-normalized)))
                 
 ;; different complex getter helpers
 

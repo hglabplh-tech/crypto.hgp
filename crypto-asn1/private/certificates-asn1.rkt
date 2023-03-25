@@ -282,15 +282,6 @@
    (signature BIT-STRING)))
 
 
-(define name-oid-to-string
-  (hash id-at-commonName             "CN"
-        id-at-localityName           "L"
-        id-at-stateOrProvinceName    "ST"
-        id-at-organizationName       "O"
-        id-at-organizationalUnitName "OU"
-        id-at-countryName            "C"
-        id-domainComponent           "DC"
-        id-emailAddress              "EMAIL"))
 
    
 

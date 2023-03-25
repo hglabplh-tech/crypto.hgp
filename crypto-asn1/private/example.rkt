@@ -2,8 +2,7 @@
 (require 
   "cmssig-asn1.rkt"
          "asn1-to-classes.rkt"
-         asn1
-         racket/date
+         asn1        
          racket/class
          racket/pretty
          binaryio/reader
@@ -26,34 +25,7 @@
 
 (displayln id-cms-enveloped-data)
 (displayln id-cms-signed-data)
-(define get-auth-attr (lambda (clazz)
-                        (send clazz get-auth-attributes)))
-(define get-unauth-attr (lambda (clazz)
-                          (send clazz get-unauth-attributes)))
-(define get-cert-validity (lambda (clazz)
-                            (let ([validity (send clazz get-validity-date-time)])
-                              (map date->string validity))))
-(define get-issuer-and-serial (lambda (clazz)
-                                (send clazz get-issuer-and-serial)))
-(define get-serial-number (lambda (clazz)
-                            (send clazz get-serial-number)))
 
-(define get-issuer (lambda (clazz)
-                     (send clazz get-issuer)))
-
-(define get-name-attributes (lambda (clazz)
-                     (send (car clazz) get-attributes)))
-
-(define get-attrval-by-type (lambda (type)
-  (lambda (clazz)
-    (send (car clazz) get-attribute-value type))))
-
-(define attribute-value->string (lambda (type)
-  (lambda (clazz)
-    (send (car clazz) attribute-value->string type))))
-
-(define get-name-normalized (lambda (clazz)
-    (send (car clazz) get-name-normalized)))
 
 (let* ([bytes (read-bytes-from-file  "data/cms-sig-ext.pkcs7")]
        [signed-data (new signed-data% (der bytes))]
