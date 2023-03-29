@@ -185,8 +185,7 @@
                        [else (substring
                               complete-string 0
                               (- (string-length complete-string) 1))]))]
-              [else #f])))         
-                      
+              [else #f])))                      
 
     (define/private (get-value-by-type type)
       (let ([attributes (map asn1->name-attribute asn1)])
@@ -219,6 +218,60 @@
       (hash-ref (car asn1) 'value #f))
     ))
 
+;; enveloped data
+
+(define enveloped-data%
+  (class* object% (enveloped-data<%>)
+    (init-field der)    
+    (super-new)
+
+    (define (der->asn1)
+      (let ([asn1-representation (asn1-from-content)])
+        (cond [(not (equal? asn1-representation #f))
+               asn1-representation]
+              [else (raise (list 'exn:cms:enveloped-data "invalid input for ASN1 enveloped data"))])))
+
+     (define/public (get-encrypted-content-info)
+       (let* ([enveloped-data (der->asn1)]
+              [encrypted-info
+               (hash-ref enveloped-data  'encryptedContentInfo #f)])
+         (asn1->encr-content-info encrypted-info)))
+         
+
+     (define/private (asn1-from-content)
+      (let* ([content (bytes->asn1 ContentInfo (get-field der this))]
+             [content-type (hash-ref content 'contentType #f)])        
+        (cond [(and (not (equal? content-type #f))
+                    (equal? content-type id-cms-enveloped-data))
+               (hash-ref content 'content #f)]
+              [else #f])))
+
+    ))
+
+(define encr-content-info%
+  (class* object% (encr-content-info<%>)
+    (init-field encr-asn1)    
+    (super-new)
+    
+    (define/public (get-content-type)
+      (hash-ref encr-asn1 'contentType #f))
+    
+    (define/public (get-cont-encr-alg)
+      (let ([algorithm (hash-ref encr-asn1 'contentEncryptionAlgorithm #f)])
+        (format-alg-id algorithm 'content-encr-algorithm-must-be-there)))
+
+    (define/public (get-content  bytes-to-hex)
+      (let ([content (hash-ref encr-asn1 'encryptedContent #f)])
+        (cond [content
+               (cond [bytes-to-hex
+                      (bytes->hex-string content)]
+                     [else content])]
+              [else #f])))
+    ))
+                             
+
+  
+
 
         
       
@@ -245,6 +298,10 @@
                      issuer-raw))])
      
       rdn)))
+
+(define asn1->encr-content-info
+  (lambda (asn1-data)
+    (new encr-content-info% (encr-asn1 asn1-data))))
 
 ;; caller of class methods to use with map for lists
 (define get-auth-attr (lambda (clazz)

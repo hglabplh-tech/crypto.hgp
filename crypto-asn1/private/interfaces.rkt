@@ -55,3 +55,11 @@
     [get-type    (->m any/c)]
     [get-value   (->m any/c)]
     ))
+
+(define enveloped-data<%>
+  (interface ()
+    ))
+
+(define encr-content-info<%>
+  (interface ()
+    ))

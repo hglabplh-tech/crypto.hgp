@@ -66,6 +66,17 @@
 ;;     ((find-value-element-proc 'content 'signerInfos)
 ;;      (test-Bytes->ASN1 "data/cms-sig-ext.pkcs7")))))
 ;;(displayln "=============================================================")
+(let* ([bytes (read-bytes-from-file  "data/cms-envelop-ext.pkcs7")]
+       [enveloped-data (new enveloped-data% (der bytes))]
+       [encr-content-info (send enveloped-data get-encrypted-content-info)])
+  (pretty-print encr-content-info)
+  (printf "encrypted content type : ~a \n" (send encr-content-info get-content-type))
+  (printf "encrypted content algorithm : ~a \n" (send encr-content-info get-cont-encr-alg))
+  ;;(printf "encrypted content raw :\n" )
+  ;;(pretty-print (send encr-content-info get-content #f))
+  (printf "encrypted content hex-string :\n" )
+  (pretty-print (send encr-content-info get-content #t))
+  )
 ;;(test-Bytes->ASN1 "data/cms-envelop-ext.pkcs7")
 ;;(displayln "=============================================================")
 ;;(test-Bytes->ASN1 "data/cms-encrypt-ext.pkcs7")
