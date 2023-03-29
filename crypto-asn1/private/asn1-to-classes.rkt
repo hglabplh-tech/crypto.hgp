@@ -6,7 +6,7 @@
          racket/list         
          racket/serialize
          asn1
-         x509
+         x509         
          asn1/util/time
          "interfaces.rkt"
          "cmssig-asn1.rkt"
@@ -14,6 +14,7 @@
          "certificates-asn1.rkt")
 (provide (all-defined-out))
 
+;;FIXME unify exception to consistent format with a exn struct
 (define signed-data%
   (class* object% (signed-data<%>)
     (init-field der)    
@@ -25,6 +26,16 @@
                asn1-representation]
               [else (raise (list 'exn:cms:signed-data "invalid input for ASN1 signed data"))]))) ;; fixme use struct exn as in x509
 
+    (define/public (get-digest-algorithms)
+      (let* ([signed-data (der->asn1)]
+             [algorithms
+              (hash-ref signed-data 'digestAlgorithms #f)])
+        (cond [algorithms
+               (map (make-format-alg-id 'digest-algorithms-must-be-there)
+                     algorithms)]
+              [else (error 'digest-algorithms-must-be-there)])))
+               
+              
     (define/public (get-certificate-set)
       (let* ([signed-data (der->asn1)]
              [cert-data (hash-ref signed-data 'certificates #f)])
@@ -42,14 +53,24 @@
               [else #f])))
       
                       
-                      
-             
-    
+    (define/public (get-encap-content-info to-hex-string)
+      (let* ([signed-data (der->asn1)]
+             [encap-info (hash-ref signed-data 'encapContentInfo #f)]
+             [data (cond [encap-info
+                          (hash-ref encap-info 'eContent #f)]
+                         [else (error 'no-encap-info-present)])]
+             [type (hash-ref encap-info 'eContentType #f)])
+        (list type (cond [data
+                          (cond [to-hex-string
+                                 (bytes->hex-string data)]
+                                [else data])]))
+        ))    
 
     (define/private (asn1-from-content)
       (let* ([content (bytes->asn1 ContentInfo (get-field der this))]
              [content-type (hash-ref content 'contentType #f)])        
-        (cond [(and (not (equal? content-type #f)) (equal? content-type id-cms-signed-data))
+        (cond [(and (not (equal? content-type #f))
+                    (equal? content-type id-cms-signed-data))
                (hash-ref content 'content #f)]
               [else #f])))
                           
@@ -60,10 +81,31 @@
   (class* object% (signer-info<%>)
     (init-field asn1)
     (super-new)
+
+    (define/public (get-digest-algoritm)
+      (let ([algorithm (hash-ref asn1 'digestAlgorithm #f)])
+        (format-alg-id algorithm 'digest-algorithm-must-be-there)))
+        
+
+    (define/public (get-signature-algoritm)
+      (let ([algorithm (hash-ref asn1 'signatureAlgorithm #f)])
+        (format-alg-id algorithm 'signature-algorithm-must-be-there)))
+
+    (define/public (get-signature to-hex-string)
+      (let ([signature (hash-ref asn1 'signature #f)])
+        (cond [signature
+               (cond [to-hex-string
+                      (bytes->hex signature)]
+                     [else signature])]
+              [else (error 'no-signature-present)])))
+
     
     (define/public (get-auth-attributes)
       (let ([signed-attrs (hash-ref asn1 'signedAttrs #f)])
-        (map signed-attr->values-list signed-attrs)))
+        (cond [signed-attrs
+               (map signed-attr->values-list signed-attrs)]
+              [else #f])
+        ))
 
       
     (define/public (get-unauth-attributes)
@@ -73,7 +115,19 @@
       (let ([issuer-and-serial (cadr
                                 ((find-value-element-proc 'issuerAndSerialNumber)
                                  (hash-ref asn1 'sid)))])
-        (asn1->issuer-and-serial issuer-and-serial)))
+        (cond [issuer-and-serial
+               (asn1->issuer-and-serial issuer-and-serial)]
+              [else #f])))
+    
+    (define/public (get-subject-identifier to-hex-string)
+      (let ([sub-key-id (cadr
+                         ((find-value-element-proc 'subjectKeyIdentifier)
+                          (hash-ref asn1 'sid)))])
+        (cond [sub-key-id
+               (cond [to-hex-string
+                      (bytes->hex-string sub-key-id)]
+                     [else sub-key-id])]
+              [else #f])))
     ))
 
 (define issuer-and-serial%
@@ -85,9 +139,10 @@
       (hash-ref asn1 'serialNumber #f))
 
     (define/public (get-issuer) 
-      (let* ([issuer-raw (hash-ref asn1 'issuer)]
+      (let* ([issuer-raw (hash-ref asn1 'issuer #f)]
              [name-attr-list (cond [(not (equal? issuer-raw #f))
-                                    (issuer-raw->name-attr-list issuer-raw)])])        
+                                    (issuer-raw->name-attr-list issuer-raw)]
+                                   [else '()])])        
         (map asn1->name name-attr-list)
         ))
     ))
@@ -127,7 +182,9 @@
                                                  type-string "=" val-string ",")])
                           (recur-attrs (cdr attrs ) complete-string)
                           )]                   
-                       [else (substring complete-string 0 (- (string-length complete-string) 1))]))]
+                       [else (substring
+                              complete-string 0
+                              (- (string-length complete-string) 1))]))]
               [else #f])))         
                       
 
@@ -197,8 +254,20 @@
 (define get-cert-validity (lambda (clazz)
                             (let ([validity (send clazz get-validity-date-time)])
                               (map date->string validity))))
+
 (define get-issuer-and-serial (lambda (clazz)
                                 (send clazz get-issuer-and-serial)))
+
+(define get-digest-algoritm (lambda (clazz)
+                              (send clazz get-digest-algoritm)))
+
+(define get-signature-algoritm (lambda (clazz)
+                                 (send clazz get-signature-algoritm)))
+
+(define get-signature (lambda (to-hex)
+                        (lambda (clazz)
+                          (send clazz get-signature to-hex))))
+
 (define get-serial-number (lambda (clazz)
                             (send clazz get-serial-number)))
 
@@ -222,8 +291,7 @@
 ;; different complex getter helpers
 
 (define x509-from-choice->DER
-  (lambda (cert-set-member)
-    
+  (lambda (cert-set-member)    
     (let ([certificate  (cadr ((find-value-element-proc 'certificate) cert-set-member))])     
       ( asn1->bytes/DER Certificate certificate))))
 

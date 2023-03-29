@@ -35,13 +35,17 @@
         id-domainComponent           "DC"
         id-emailAddress              "EMAIL"))
 
+                         
+(define (attr-type->fun attr-type)
+  (or (relation-ref ATTRVAL-GET-FUNS 'type attr-type 'val-fun) (lambda (v) v)))  
+
 ;;attribute value transformations
 
 (define (signed-attr->values-list  attr-value)
   (let* ([type (hash-ref attr-value 'attrType #f)]
          [values (hash-ref attr-value 'attrValues #f)]
          [fun (attr-type->fun type)])
-         (fun values)))
+    (fun values)))
         
 
 (define (asn1->smime-capability attr-value)
@@ -54,14 +58,8 @@
                              (cadr parm-int)]
                             [parm-octet
                              (bytes->hex (cadr parm-octet))]
-                            [else params]))]
-                   [else params]))))
-                          
-(define (attr-type->fun attr-type)
-  (or (relation-ref ATTRVAL-GET-FUNS 'type attr-type 'val-fun) ANY))     
-            
-                  
-         
+                            [else (cadr params)]))]
+                   [else params]))))         
 
 (define (asn1->smime-attrs-seq attr-value)
   (map asn1->smime-capability attr-value))
@@ -84,13 +82,23 @@
 
 (define (asn1-times->seconds attr-value)
   (cond [(and (list? attr-value) (pair? (car attr-value)))
-     (asn1-time->seconds (car attr-value))]))
+         (asn1-time->seconds (car attr-value))]))
 
 (define (asn1->content-type attr-value)
   attr-value)
 
 (define (asn1->digest attr-value)
   (map bytes->hex attr-value))
+
+(define (make-format-alg-id error-sym)
+  (lambda (algorithm)
+    (format-alg-id algorithm error-sym)))
+    
+(define (format-alg-id algorithm error-sym)
+  (cond [algorithm
+         (list (hash-ref algorithm 'algorithm #f)
+               (hash-ref algorithm 'parameters #f))]
+        [else (error error-sym)]))
 
 
 (define ATTRVAL-GET-FUNS

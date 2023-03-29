@@ -180,7 +180,7 @@
 
 (define-asn1-type EncryptedKey OCTET-STRING)
 
-(define-asn1-type EncapsulatedContentInfo (SEQUENCE           
+(define-asn1-type EncapsulatedContentInfo (SEQUENCE         ;;next to get delete this after coding  
                                            (eContentType ContentType)
                                            (eContent #:explicit 0  OCTET-STRING #:optional)))
 
