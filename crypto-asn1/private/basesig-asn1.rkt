@@ -15,7 +15,8 @@
 
 #lang racket/base
 (require asn1 asn1/util/names
-         "error.rkt")
+         "error.rkt"
+         "asn1-oids.rkt")
 (provide (all-defined-out)
          relation-ref)
 
@@ -84,13 +85,9 @@
 ;; ============================================================
 ;; Object Identifiers
 
-;; Common prefixes
 
-(define rsadsi (OID (iso 1) (member-body 2) (us 840) (rsadsi 113549)))
-(define pkcs-1 (build-OID rsadsi (pkcs 1) 1))
-(define pkcs-3 (build-OID rsadsi (pkcs 1) 3))
-(define pkcs-5 (build-OID rsadsi (pkcs 1) 5))
-(define pkcs-9 (build-OID rsadsi (pkcs 1) 9))
+
+
 
 (define certicom (OID (iso 1) (identified-organization 3) (certicom 132)))
 (define ansi-X9-62 (OID (iso 1) (member-body 2) (us 840) (ansi-X9-62 10045)))
@@ -395,28 +392,7 @@
 
 
 
-;;=========================================================================================
-;;Some general definitions
-;;=========================================================================================
-(define id-at (OID (joint-iso-ccitt 2) (ds 5) 4))
-(define id-at-name (build-OID id-at 41))
-(define id-at-surname (build-OID id-at 4))
-(define id-at-givenName (build-OID id-at 42))
-(define id-at-initials (build-OID id-at 43))
-(define id-at-generationQualifier (build-OID id-at 44))
-(define id-at-commonName (build-OID id-at 3))
-(define id-at-localityName (build-OID id-at 7))
-(define id-at-stateOrProvinceName (build-OID id-at 8))
-(define id-at-organizationName (build-OID id-at 10))
-(define id-at-organizationalUnitName (build-OID id-at 11))
-(define id-at-title (build-OID id-at 12))
-(define id-at-dnQualifier (build-OID id-at 46))
-(define id-at-countryName (build-OID id-at 6))
-(define id-at-serialNumber (build-OID id-at 5))
-(define id-at-pseudonym (build-OID id-at 65))
-(define id-domainComponent (OID 0 9 2342 19200300 100 1 25))
 
-(define id-emailAddress (build-OID pkcs-9 1))
 (define-asn1-type -SomeString
   (CHOICE  
    (printableString  PrintableString)

@@ -16,6 +16,8 @@
 (define (issuer-and-serial? v) (is-a? v issuer-and-serial<%>))
 (define (name? v) (is-a? v name<%>))
 (define (name-attribute? v) (is-a? v name-attribute<%>))
+(define (key-trans-recipient-info? v) (is-a? v key-trans-recipient-info<%>))
+(define (key-agree-recipient-info? v) (is-a? v key-agree-recipient-info<%>))
 
 (define signed-data<%>
   (interface ()    
@@ -61,5 +63,13 @@
     ))
 
 (define encr-content-info<%>
+  (interface ()
+    ))
+
+(define key-trans-recipient-info<%>
+  (interface ()
+    ))
+
+(define key-agree-recipient-info<%>
   (interface ()
     ))

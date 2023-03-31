@@ -1,12 +1,14 @@
 #lang racket/base
 (require 
   "cmssig-asn1.rkt"
-         "asn1-to-classes.rkt"
-         asn1        
-         racket/class
-         racket/pretty
-         binaryio/reader
-         rnrs/io/ports-6)
+  "asn1-to-classes.rkt"
+  "asn1-oids.rkt"
+  "interfaces.rkt"
+  asn1        
+  racket/class
+  racket/pretty
+  binaryio/reader
+  rnrs/io/ports-6)
 
 
 
@@ -76,6 +78,21 @@
   ;;(pretty-print (send encr-content-info get-content #f))
   (printf "encrypted content hex-string :\n" )
   (pretty-print (send encr-content-info get-content #t))
+  (printf "originator info :\n" ) 
+  (pretty-print (send enveloped-data get-originator-info))
+  (printf "recipient infos :\n" ) 
+  (let ([receipt-list (send enveloped-data get-recipient-infos)])
+    (printf "values of first info :\n" )
+    (printf "get-receipt-identifier to-hex-string\n\n")    
+    (pretty-print (map get-name-normalized%nocar
+                       (send (send (car receipt-list) get-receipt-identifier #t) get-issuer)))
+    (printf "encryption alg : \n")
+    (pretty-print (send (car receipt-list) get-key-encrypt-algorithm))
+     (printf "encrypted key : \n")
+    (pretty-print (send (car receipt-list) get-encrypted-key #t))
+   
+    )
+          
   )
 ;;(test-Bytes->ASN1 "data/cms-envelop-ext.pkcs7")
 ;;(displayln "=============================================================")

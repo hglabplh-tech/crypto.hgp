@@ -22,52 +22,12 @@
          Name GeneralName
          GeneralNames
          UnauthAttributes
-         id-at-name
-         id-at-surname
-         id-at-givenName
-         id-at-initials
-         id-at-generationQualifier
-         id-at-commonName
-         id-at-localityName
-         id-at-stateOrProvinceName
-         id-at-organizationName
-         id-at-organizationalUnitName
-         id-at-title
-         id-at-dnQualifier
-         id-at-countryName
-         id-emailAddress
-         id-at-serialNumber
-         id-at-pseudonym
-         id-domainComponent )
+         relation-ref)
 ;;=======================================================================================
 ;; CMS signature (former pkcs7) definitions to build the asn1 signature structures for serialize / deserialice
 ;;========================================================================================
 ;;FIXME : add the latest definitions too and change a few definitions to fit the latest specification changes
-;;=======================================================================================
-;; the OIDs for cms signatures
-;;=======================================================================================
-(define id-cms-contentInfo (build-OID rsadsi  1 9 16 1 6))
-
-(define id-cms-akey-package (build-OID (list 2 16 840 1 101 2 1 2 78 5)))
-
-(define id-cms-data (build-OID rsadsi (pkcs 1) 7 1))
-
-(define id-cms-signed-data (build-OID rsadsi (pkcs 1) 7 2))
-
-(define id-cms-enveloped-data (build-OID rsadsi (pkcs 1) 7 3))
-
-(define id-cms-digest-data (build-OID rsadsi (pkcs 1) 7 5))
-
-(define id-cms-encrypted-data (build-OID rsadsi (pkcs 1) 7 6))
-
-(define id-cms-auth-data (build-OID rsadsi (pkcs 1) 9 16 1 2))
-
-(define id-cms-auth-enveloped-data (build-OID rsadsi (pkcs 1) 9 16 1 23))
-
-(define id-cms-auth-compressed-data (build-OID rsadsi (pkcs 1) 9 16 1 9))
-
-
-      
+;;=======================================================================================      
 
 
 ;;algorithm and other identifiers..... and primitive definitions
@@ -254,14 +214,6 @@
                               (contentType ContentType)
                               (contentEncryptionAlgorithm AlgorithmIdentifier/DER)
                               (encryptedContent #:implicit 0 EncryptedContent #:optional)))
-
-  
-
-
-
-
-
-
 
 
 (define-asn1-type KeyTransRecipientInfo (SEQUENCE 

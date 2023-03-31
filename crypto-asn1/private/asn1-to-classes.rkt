@@ -11,6 +11,7 @@
          "interfaces.rkt"
          "cmssig-asn1.rkt"
          "asn1-utils.rkt"
+         "asn1-oids.rkt"
          "certificates-asn1.rkt")
 (provide (all-defined-out))
 
@@ -32,7 +33,7 @@
               (hash-ref signed-data 'digestAlgorithms #f)])
         (cond [algorithms
                (map (make-format-alg-id 'digest-algorithms-must-be-there)
-                     algorithms)]
+                    algorithms)]
               [else (error 'digest-algorithms-must-be-there)])))
                
               
@@ -231,14 +232,26 @@
                asn1-representation]
               [else (raise (list 'exn:cms:enveloped-data "invalid input for ASN1 enveloped data"))])))
 
-     (define/public (get-encrypted-content-info)
-       (let* ([enveloped-data (der->asn1)]
-              [encrypted-info
-               (hash-ref enveloped-data  'encryptedContentInfo #f)])
-         (asn1->encr-content-info encrypted-info)))
+    (define/public (get-encrypted-content-info)
+      (let* ([enveloped-data (der->asn1)]
+             [encrypted-info
+              (hash-ref enveloped-data  'encryptedContentInfo #f)])
+        (asn1->encr-content-info encrypted-info)))
+
+    (define/public (get-originator-info)
+      (let* ([enveloped-data (der->asn1)]
+             [originator-info (hash-ref enveloped-data 'originatorInfo #f)])
+        originator-info))
+
+    (define/public (get-recipient-infos)
+      (let* ([enveloped-data (der->asn1)]
+             [recipient-infos (hash-ref enveloped-data 'recipientInfos #f)])
+        (map select-recipient-info recipient-infos)))
+        
+              
          
 
-     (define/private (asn1-from-content)
+    (define/private (asn1-from-content)
       (let* ([content (bytes->asn1 ContentInfo (get-field der this))]
              [content-type (hash-ref content 'contentType #f)])        
         (cond [(and (not (equal? content-type #f))
@@ -269,7 +282,65 @@
               [else #f])))
     ))
                              
+(define key-trans-recipient-info%
+  (class* object% (key-trans-recipient-info<%>)
+    (init-field info-asn1)
+    (super-new)
 
+    (define/public (get-receipt-identifier to-hex-string)
+      (let* ([rid (hash-ref info-asn1 'rid #f)]
+             [issuer-and-serial (assoc 'issuerAndSerialNumber (list rid))]
+             [subject-key-id (assoc 'subjectKeyIdentifier (list rid))])
+        (cond [issuer-and-serial
+               (asn1->issuer-and-serial (cadr issuer-and-serial))]
+              [subject-key-id
+               (cond [to-hex-string
+                      (bytes->hex-string (cadr subject-key-id))]
+                     [else (cadr subject-key-id)])]
+              [else #f])))
+
+    (define/public (get-key-encrypt-algorithm)
+      (let ([encr-algo (hash-ref info-asn1 'keyEncryptionAlgorithm #f)])
+        (format-alg-id encr-algo 'key-encr-algo-must-be-there)))
+
+    (define/public (get-encrypted-key to-hex-string)
+      (let ([encrypted-key (hash-ref info-asn1 'encryptedKey #f)])
+        (cond [encrypted-key
+                (cond [to-hex-string
+                       (bytes->hex-string encrypted-key)]
+                      [else encrypted-key])]
+               [else #f])))
+              
+            
+    ))
+
+(define key-agree-recipient-info%
+  (class* object% (key-agree-recipient-info<%>)
+    (init-field info-asn1)
+    (super-new)
+
+    (define/public (get-key-encrypt-algorithm)
+      (let ([encr-algo (hash-ref info-asn1 'keyEncryptionAlgorithm #f)])
+        (format-alg-id encr-algo 'key-encr-algo-must-be-there)))
+    ))
+
+(define dummy-recipient-info%
+  (class object% 
+    (init-field info-asn1)
+    (super-new)
+
+    (define/public (get-key-encrypt-algorithm)
+      (let ([encr-algo (hash-ref info-asn1 'keyEncryptionAlgorithm #f)])
+        (format-alg-id encr-algo 'key-encr-algo-must-be-there)))
+    ))
+
+
+      
+                 
+
+
+      
+        
   
 
 
@@ -341,9 +412,36 @@
 (define attribute-value->string (lambda (type)
                                   (lambda (clazz)
                                     (send (car clazz) attribute-value->string type))))
+(define attribute-value->string%nocar (lambda (type)
+                                  (lambda (clazz)
+                                    (send clazz attribute-value->string type))))
 
 (define get-name-normalized (lambda (clazz)
                               (send (car clazz) get-name-normalized)))
+(define get-name-normalized%nocar (lambda (clazz)
+                              (send clazz get-name-normalized)))
+
+
+
+(define (get-recipient-class-inst clazz-def asn1-in)
+    (new clazz-def (info-asn1 asn1-in)))
+
+(define (select-recipient-info asn1-in)
+  (cond  [(assoc 'ktri (list asn1-in))
+          (get-recipient-class-inst key-trans-recipient-info% (cadr asn1-in))]
+         [(assoc 'kari (list asn1-in))
+          (get-recipient-class-inst key-agree-recipient-info% (cadr asn1-in))]
+         [(assoc 'kekri (list asn1-in))
+          (get-recipient-class-inst dummy-recipient-info% (cadr asn1-in))]
+         [(assoc 'pwri (list asn1-in))
+          (get-recipient-class-inst dummy-recipient-info% (cadr asn1-in))]
+         [(assoc 'ori (list asn1-in))
+          (get-recipient-class-inst dummy-recipient-info% (cadr asn1-in))]))
+  
+
+
+    
+  
                 
 ;; different complex getter helpers
 
