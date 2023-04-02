@@ -306,10 +306,10 @@
     (define/public (get-encrypted-key to-hex-string)
       (let ([encrypted-key (hash-ref info-asn1 'encryptedKey #f)])
         (cond [encrypted-key
-                (cond [to-hex-string
-                       (bytes->hex-string encrypted-key)]
-                      [else encrypted-key])]
-               [else #f])))
+               (cond [to-hex-string
+                      (bytes->hex-string encrypted-key)]
+                     [else encrypted-key])]
+              [else #f])))
               
             
     ))
@@ -403,82 +403,89 @@
                      (send clazz get-issuer)))
 
 (define get-name-attributes (lambda (clazz)
-                              (send (car clazz) get-attributes)))
+                              (send clazz get-attributes)))
 
 (define get-attrval-by-type (lambda (type)
                               (lambda (clazz)
-                                (send (car clazz) get-attribute-value type))))
+                                (send clazz get-attribute-value type))))
 
 (define attribute-value->string (lambda (type)
-                                  (lambda (clazz)
-                                    (send (car clazz) attribute-value->string type))))
-(define attribute-value->string%nocar (lambda (type)
                                   (lambda (clazz)
                                     (send clazz attribute-value->string type))))
 
 (define get-name-normalized (lambda (clazz)
-                              (send (car clazz) get-name-normalized)))
-(define get-name-normalized%nocar (lambda (clazz)
                               (send clazz get-name-normalized)))
 
+(define (list-inlist-resolve fun)
+  (lambda (value)
+    (fun (car value))))
+
+(define (list-inlist-resolve-param fun param)
+  (let ([function (fun param)])
+    (lambda (value)
+      (function (car value)))))
 
 
-(define (get-recipient-class-inst clazz-def asn1-in)
+
+
+
+  (define (get-recipient-class-inst clazz-def asn1-in)
     (new clazz-def (info-asn1 asn1-in)))
 
-(define (select-recipient-info asn1-in)
-  (cond  [(assoc 'ktri (list asn1-in))
-          (get-recipient-class-inst key-trans-recipient-info% (cadr asn1-in))]
-         [(assoc 'kari (list asn1-in))
-          (get-recipient-class-inst key-agree-recipient-info% (cadr asn1-in))]
-         [(assoc 'kekri (list asn1-in))
-          (get-recipient-class-inst dummy-recipient-info% (cadr asn1-in))]
-         [(assoc 'pwri (list asn1-in))
-          (get-recipient-class-inst dummy-recipient-info% (cadr asn1-in))]
-         [(assoc 'ori (list asn1-in))
-          (get-recipient-class-inst dummy-recipient-info% (cadr asn1-in))]))
+  (define (select-recipient-info asn1-in)
+    (cond  [(assoc 'ktri (list asn1-in))
+            (get-recipient-class-inst key-trans-recipient-info% (cadr asn1-in))]
+           [(assoc 'kari (list asn1-in))
+            (get-recipient-class-inst key-agree-recipient-info% (cadr asn1-in))]
+           [(assoc 'kekri (list asn1-in))
+            (get-recipient-class-inst dummy-recipient-info% (cadr asn1-in))]
+           [(assoc 'pwri (list asn1-in))
+            (get-recipient-class-inst dummy-recipient-info% (cadr asn1-in))]
+           [(assoc 'ori (list asn1-in))
+            (get-recipient-class-inst dummy-recipient-info% (cadr asn1-in))]))
   
 
 
     
   
                 
-;; different complex getter helpers
+  ;; different complex getter helpers
 
-(define x509-from-choice->DER
-  (lambda (cert-set-member)    
-    (let ([certificate  (cadr ((find-value-element-proc 'certificate) cert-set-member))])     
-      ( asn1->bytes/DER Certificate certificate))))
+  (define x509-from-choice->DER
+    (lambda (cert-set-member)    
+      (let ([certificate  (cadr ((find-value-element-proc 'certificate) cert-set-member))])     
+        ( asn1->bytes/DER Certificate certificate))))
 
  
   
   
-;;tools
+  ;;tools
 
 
 
     
-(define find-value-element (lambda (content  varargs)
-                             (let recur-find-value ([content-to-work content]
-                                                    [args varargs])
-                               (cond [(null? args) content-to-work])
-                               (let* (
-                                      [element (car args)]
-                                      [found-content (cond [(hash? content-to-work) (hash-ref content-to-work element #f)]
-                                                           [else (cond [(not (andmap pair? content-to-work))
-                                                                        content-to-work]
-                                                                       [(not
-                                                                         (equal?
-                                                                          (assoc element content-to-work) #f))
-                                                                        (cadr(assoc element content-to-work))]
-                                                                       [else #f])])])
-                                 (cond [found-content
-                                        (cond [(null? (cdr args))
-                                               found-content]
-                                              [else (recur-find-value found-content (cdr args))])]
-                                       [else content-to-work])))))
+  (define find-value-element (lambda (content  varargs)
+                               (let recur-find-value ([content-to-work content]
+                                                      [args varargs])
+                                 (cond [(null? args) content-to-work])
+                                 (let* (
+                                        [element (car args)]
+                                        [found-content (cond [(hash? content-to-work) (hash-ref content-to-work element #f)]
+                                                             [else (cond [(not (andmap pair? content-to-work))
+                                                                          content-to-work]
+                                                                         [(not
+                                                                           (equal?
+                                                                            (assoc element content-to-work) #f))
+                                                                          (cadr(assoc element content-to-work))]
+                                                                         [else #f])])])
+                                   (cond [found-content
+                                          (cond [(null? (cdr args))
+                                                 found-content]
+                                                [else (recur-find-value found-content (cdr args))])]
+                                         [else content-to-work])))))
                                                   
-(define find-value-element-proc (lambda varargs
-                                  (lambda (content)
-                                    (find-value-element content  varargs))))
+  (define find-value-element-proc (lambda varargs
+                                    (lambda (content)
+                                      (find-value-element content  varargs))))
 
+  

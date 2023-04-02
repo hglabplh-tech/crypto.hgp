@@ -51,13 +51,14 @@
   (printf "issuer  :\n")
   (pretty-print (map get-issuer (map get-issuer-and-serial sig-info-list)))
   (printf "issuer attributes :\n")
-  (pretty-print (map get-name-attributes
-                     (map get-issuer (map get-issuer-and-serial sig-info-list))))
+  (for-each (lambda (v) (pretty-print ((list-inlist-resolve get-name-attributes) v)))
+                                                           
+            (map get-issuer (map get-issuer-and-serial sig-info-list)))
   (printf "issuer -attr field :\n")
-  (pretty-print (map (attribute-value->string id-at-commonName)
+  (pretty-print (map (list-inlist-resolve-param attribute-value->string id-at-commonName)
                      (map get-issuer (map get-issuer-and-serial sig-info-list))))
   (printf "normalized issuer: \n")
-  (pretty-print (map get-name-normalized
+  (pretty-print (map (list-inlist-resolve get-name-normalized)
                      (map get-issuer (map get-issuer-and-serial sig-info-list))))
           
   (map get-unauth-attr sig-info-list))
@@ -71,7 +72,7 @@
 (let* ([bytes (read-bytes-from-file  "data/cms-envelop-ext.pkcs7")]
        [enveloped-data (new enveloped-data% (der bytes))]
        [encr-content-info (send enveloped-data get-encrypted-content-info)])
-  (pretty-print encr-content-info)
+  (pretty-print encr-content-info)          
   (printf "encrypted content type : ~a \n" (send encr-content-info get-content-type))
   (printf "encrypted content algorithm : ~a \n" (send encr-content-info get-cont-encr-alg))
   ;;(printf "encrypted content raw :\n" )
@@ -84,11 +85,11 @@
   (let ([receipt-list (send enveloped-data get-recipient-infos)])
     (printf "values of first info :\n" )
     (printf "get-receipt-identifier to-hex-string\n\n")    
-    (pretty-print (map get-name-normalized%nocar
+    (pretty-print (map get-name-normalized
                        (send (send (car receipt-list) get-receipt-identifier #t) get-issuer)))
     (printf "encryption alg : \n")
     (pretty-print (send (car receipt-list) get-key-encrypt-algorithm))
-     (printf "encrypted key : \n")
+    (printf "encrypted key : \n")
     (pretty-print (send (car receipt-list) get-encrypted-key #t))
    
     )
