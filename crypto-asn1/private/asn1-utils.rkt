@@ -115,6 +115,79 @@
    
    ))
 
+;; utils to build ASN.1 structures
+
+(define (make-sequence key-list value-list)
+  (cond [(not (equal? (length key-list) (length value-list)))
+         #f])
+  (let recur-lists ([result-list '()]
+                    [k-list key-list]
+                    [v-list value-list])
+    (cond [(null? k-list)
+           (make-hasheq result-list)]
+          [else
+           (recur-lists (cond [(not (equal? (car v-list) #f))
+                               (append result-list (list
+                                                    (cons (car k-list)
+                                                          (car v-list))))]
+                              [else result-list])
+                        (cdr k-list)
+                        (cdr v-list))])
+    ))
+
+(define (check-and-make-choice choice-defs key-value-pair)
+  (let recur-test ([c-defs choice-defs])
+    (cond [(null? c-defs)
+           (error 'illegal-choice-tag)]
+          [else
+           (let ([assoc-result
+                  (assoc
+                   (car c-defs)
+                   (list key-value-pair))])
+
+    (cond [(pair? assoc-result)
+           (list (car key-value-pair) (cadr key-value-pair))]
+          [else (recur-test (cdr c-defs))]))])))
+    
+
+(define (check-and-make-sequence sequence-defs values)
+  (let recur-defs ([seq-defs sequence-defs]
+                   [val-list values]
+                   [result-keys '()])
+    (cond [(or (null? val-list) (null? sequence-defs))
+           (make-sequence (map car sequence-defs) values)]
+          [ else (cond [(and (equal? (cadr (car seq-defs)) #t)
+                             (equal? (car val-list) #f))
+                       (error 'seq-mandatory-not-set)]
+                       [else (recur-defs (cdr seq-defs) (cdr val-list)
+                        (append result-keys (list (car (car seq-defs)))))])])))
+           
+           
+                              
+
+(define (make-set key-list value-list)
+  (cond [(not (equal? (length key-list) (length value-list)))
+         #f])
+  (let recur-lists ([result-list '()]
+                    [k-list key-list]
+                    [v-list value-list])
+    (cond [(null? k-list)
+           (make-hash result-list)]
+          [else
+           (recur-lists (append result-list (cons
+                                             (car k-list)
+                                                   (car v-list)))
+                        (cdr k-list)
+                        (cdr v-list))])
+    ))
+
+(define (make-choice key value)
+  (list key value))
+
+;; this is defined because the internal definition can change
+(define (make-set-of comp-list)
+  comp-list)
+                
 
 ;; other utils
 

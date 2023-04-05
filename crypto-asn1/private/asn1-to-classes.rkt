@@ -377,10 +377,16 @@
 ;; caller of class methods to use with map for lists
 (define get-auth-attr (lambda (clazz)
                         (send clazz get-auth-attributes)))
+
 (define get-unauth-attr (lambda (clazz)
                           (send clazz get-unauth-attributes)))
+
 (define get-cert-validity (lambda (clazz)
                             (let ([validity (send clazz get-validity-date-time)])
+                              (map date->string validity))))
+
+(define get-cert-issuer (lambda (clazz)
+                            (let ([validity (send clazz get-issuer)])
                               (map date->string validity))))
 
 (define get-issuer-and-serial (lambda (clazz)

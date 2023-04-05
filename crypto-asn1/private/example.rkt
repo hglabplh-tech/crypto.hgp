@@ -36,6 +36,7 @@
   (printf "digest algorithms in signed data :\n~a\n" (send signed-data get-digest-algorithms))
   (printf "encapsulated data :\n~a\n" (send signed-data get-encap-content-info #f))  
   (printf " validy : ~a\n" (map get-cert-validity (send signed-data get-certificate-set)))
+  (printf " cert issuer : ~a\n" (map get-issuer (send signed-data get-certificate-set)))
   (printf "signed attributes :\n")
   (pretty-print (map get-auth-attr sig-info-list))
   (printf "issuer and serial :\n")
@@ -54,6 +55,8 @@
   (for-each (lambda (v) (pretty-print ((list-inlist-resolve get-name-attributes) v)))
                                                            
             (map get-issuer (map get-issuer-and-serial sig-info-list)))
+  (printf "get issuer asn1:\n")
+  (pretty-print (map get-issuer-and-serial sig-info-list))
   (printf "issuer -attr field :\n")
   (pretty-print (map (list-inlist-resolve-param attribute-value->string id-at-commonName)
                      (map get-issuer (map get-issuer-and-serial sig-info-list))))
@@ -65,14 +68,11 @@
 
 
 
-;;(map (find-value-element-proc 'attrValues) (car (map  (find-value-element-proc 'signedAttrs)
-;;     ((find-value-element-proc 'content 'signerInfos)
-;;      (test-Bytes->ASN1 "data/cms-sig-ext.pkcs7")))))
 ;;(displayln "=============================================================")
 (let* ([bytes (read-bytes-from-file  "data/cms-envelop-ext.pkcs7")]
        [enveloped-data (new enveloped-data% (der bytes))]
        [encr-content-info (send enveloped-data get-encrypted-content-info)])
-  (pretty-print encr-content-info)          
+  (pretty-print encr-content-info)
   (printf "encrypted content type : ~a \n" (send encr-content-info get-content-type))
   (printf "encrypted content algorithm : ~a \n" (send encr-content-info get-cont-encr-alg))
   ;;(printf "encrypted content raw :\n" )
@@ -96,7 +96,14 @@
           
   )
 ;;(test-Bytes->ASN1 "data/cms-envelop-ext.pkcs7")
-;;(displayln "=============================================================")
+(displayln "=============================================================")
+(map (find-value-element-proc 'attrValues)
+     (car (map  (find-value-element-proc 'signedAttrs)
+                ((find-value-element-proc 'content 'signerInfos)
+                 (test-Bytes->ASN1 "data/cms-sig-ext.pkcs7")))))
+(displayln "=============================================================")
+((find-value-element-proc 'content 'signerInfos)
+ (test-Bytes->ASN1 "data/cms-sig-ext.pkcs7"))
 ;;(test-Bytes->ASN1 "data/cms-encrypt-ext.pkcs7")
 
 
