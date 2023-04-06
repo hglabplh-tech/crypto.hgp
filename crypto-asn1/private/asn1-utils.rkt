@@ -16,8 +16,11 @@
 #lang racket/base
 (require asn1 asn1/util/names
          asn1/util/time
-         racket/match         
-         "basesig-asn1.rkt"
+         racket/match
+         rnrs/io/ports-6
+         binaryio/reader
+         "cmssig-asn1.rkt"
+         "certificates-asn1.rkt"
          "asn1-oids.rkt")
          
 (provide (all-defined-out))
@@ -117,6 +120,7 @@
 
 ;; utils to build ASN.1 structures
 
+
 (define (make-sequence key-list value-list)
   (cond [(not (equal? (length key-list) (length value-list)))
          #f])
@@ -145,9 +149,9 @@
                    (car c-defs)
                    (list key-value-pair))])
 
-    (cond [(pair? assoc-result)
-           (list (car key-value-pair) (cadr key-value-pair))]
-          [else (recur-test (cdr c-defs))]))])))
+             (cond [(pair? assoc-result)
+                    (make-choice (car key-value-pair) (cadr key-value-pair))]
+                   [else (recur-test (cdr c-defs))]))])))
     
 
 (define (check-and-make-sequence sequence-defs values)
@@ -158,9 +162,9 @@
            (make-sequence (map car sequence-defs) values)]
           [ else (cond [(and (equal? (cadr (car seq-defs)) #t)
                              (equal? (car val-list) #f))
-                       (error 'seq-mandatory-not-set)]
+                        (error 'seq-mandatory-not-set)]
                        [else (recur-defs (cdr seq-defs) (cdr val-list)
-                        (append result-keys (list (car (car seq-defs)))))])])))
+                                         (append result-keys (list (car (car seq-defs)))))])])))
            
            
                               
@@ -176,7 +180,7 @@
           [else
            (recur-lists (append result-list (cons
                                              (car k-list)
-                                                   (car v-list)))
+                                             (car v-list)))
                         (cdr k-list)
                         (cdr v-list))])
     ))
@@ -205,3 +209,91 @@
 
 (define (bytes->hex-string bs)
   (bytes->string/latin-1 (bytes->hex bs)))
+
+;; different complex getter helpers
+
+    
+(define find-value-element (lambda (content  varargs)
+                             (let recur-find-value ([content-to-work content]
+                                                    [args varargs])
+                               (cond [(null? args) content-to-work])
+                               (let* (
+                                      [element (car args)]
+                                      [found-content (cond [(hash? content-to-work) (hash-ref content-to-work element #f)]
+                                                           [else (cond [(not (andmap pair? content-to-work))
+                                                                        content-to-work]
+                                                                       [(not
+                                                                         (equal?
+                                                                          (assoc element content-to-work) #f))
+                                                                        (cadr(assoc element content-to-work))]
+                                                                       [else #f])])])
+                                 (cond [found-content
+                                        (cond [(null? (cdr args))
+                                               found-content]
+                                              [else (recur-find-value found-content (cdr args))])]
+                                       [else content-to-work])))))
+                                                  
+(define find-value-element-proc (lambda varargs
+                                  (lambda (content)
+                                    (find-value-element content  varargs))))
+;; functions for certificates
+(define x509-from-choice->DER
+  (lambda (cert-set-member)    
+    (let ([certificate  (cadr ((find-value-element-proc 'certificate) cert-set-member))])     
+      ( asn1->bytes/DER Certificate certificate))))
+
+(define (make-cert-val-getter cert/DER)
+  (let* ([cert-asn1 (bytes->asn1/DER Certificate cert/DER)]
+         [tbs-asn1 (hash-ref cert-asn1 'tbsCertificate)])
+    (lambda (reference)
+      (let ([cert-ref-val (hash-ref cert-asn1 reference #f)]
+            [tbs-ref-val (hash-ref tbs-asn1 reference #f)])
+        (cond [tbs-ref-val
+               tbs-ref-val]
+              [cert-ref-val
+               cert-ref-val]
+              [else #f])))))
+
+(define (get-validity-date-time validity)
+  (map seconds->date (get-validity-seconds validity)))
+
+(define (get-validity-seconds validity)
+  (cond [(hash? validity)               
+     (list (asn1-time->seconds (hash-ref validity 'notBefore))
+                               (asn1-time->seconds (hash-ref validity 'notAfter)))] 
+        [else (error 'validity-invalid)]))
+
+(define (get-validity-date-time-checked cert-val-getter)
+  (let* ([validity (cert-val-getter 'validity)])
+    (cond [validity
+           (get-validity-date-time validity)]
+          [else (error 'validity-invalid-val)])))
+
+(define (get-issuer-checked cert-val-getter)
+  (let* ([issuer (cert-val-getter 'issuer)])
+    (cond [issuer
+           issuer]
+          [else (error 'issuer-invalid)])
+           
+           ))
+
+(define (get-serial-checked cert-val-getter)
+  (let* ([serial (cert-val-getter 'serialNumber)])
+    (cond [serial
+           serial]
+          [else (error 'serial-invalid)])
+           
+           ))
+                              
+                                
+           
+
+;; general utility funs
+(define read-bytes-from-file
+  (lambda (fname)
+    (let*([port (open-file-input-port fname)]
+          [reader (make-binary-reader port)]
+          {file-size (file-size fname)}
+          )
+      (b-read-bytes reader file-size)
+      )))

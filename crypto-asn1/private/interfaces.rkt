@@ -5,8 +5,7 @@
 (require asn1
          racket/contract
          racket/class
-         scramble/result
-         x509
+         scramble/result         
          (only-in asn1 asn1-oid? bit-string?)
          (only-in crypto crypto-factory? public-only-key? security-level/c))
 (provide (all-defined-out))
@@ -21,7 +20,7 @@
 
 (define signed-data<%>
   (interface ()    
-    [get-certificate-set        (->m (or/c boolean? (listof certificate?)))]
+    [get-certificate-set        (->m (or/c boolean? (listof procedure?)))]
     [get-signer-infos           (->m (or/c boolean? (listof signer-info?)))]
     [get-digest-algorithms      (->m (listof any/c))]
     [get-encap-content-info     (->m boolean? (listof any/c))]

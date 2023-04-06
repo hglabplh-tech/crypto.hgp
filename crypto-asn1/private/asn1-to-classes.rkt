@@ -41,7 +41,7 @@
       (let* ([signed-data (der->asn1)]
              [cert-data (hash-ref signed-data 'certificates #f)])
         (cond [(not (equal? cert-data #f))
-               (let ([cert-list (map bytes->certificate
+               (let ([cert-list (map make-cert-val-getter
                                      (map x509-from-choice->DER cert-data))])
                  cert-list)]
               [else #f])))
@@ -381,13 +381,13 @@
 (define get-unauth-attr (lambda (clazz)
                           (send clazz get-unauth-attributes)))
 
-(define get-cert-validity (lambda (clazz)
-                            (let ([validity (send clazz get-validity-date-time)])
+(define get-cert-validity (lambda (cert-val-getter)
+                            (let ([validity (get-validity-date-time-checked cert-val-getter)])
                               (map date->string validity))))
 
-(define get-cert-issuer (lambda (clazz)
-                            (let ([validity (send clazz get-issuer)])
-                              (map date->string validity))))
+(define get-cert-issuer (lambda (cert-val-getter)
+                            (let ([issuer (get-issuer cert-val-getter)])
+                              issuer)))
 
 (define get-issuer-and-serial (lambda (clazz)
                                 (send clazz get-issuer-and-serial)))
@@ -455,12 +455,7 @@
     
   
                 
-  ;; different complex getter helpers
-
-  (define x509-from-choice->DER
-    (lambda (cert-set-member)    
-      (let ([certificate  (cadr ((find-value-element-proc 'certificate) cert-set-member))])     
-        ( asn1->bytes/DER Certificate certificate))))
+  
 
  
   
@@ -469,29 +464,5 @@
 
 
 
-    
-  (define find-value-element (lambda (content  varargs)
-                               (let recur-find-value ([content-to-work content]
-                                                      [args varargs])
-                                 (cond [(null? args) content-to-work])
-                                 (let* (
-                                        [element (car args)]
-                                        [found-content (cond [(hash? content-to-work) (hash-ref content-to-work element #f)]
-                                                             [else (cond [(not (andmap pair? content-to-work))
-                                                                          content-to-work]
-                                                                         [(not
-                                                                           (equal?
-                                                                            (assoc element content-to-work) #f))
-                                                                          (cadr(assoc element content-to-work))]
-                                                                         [else #f])])])
-                                   (cond [found-content
-                                          (cond [(null? (cdr args))
-                                                 found-content]
-                                                [else (recur-find-value found-content (cdr args))])]
-                                         [else content-to-work])))))
-                                                  
-  (define find-value-element-proc (lambda varargs
-                                    (lambda (content)
-                                      (find-value-element content  varargs))))
 
   

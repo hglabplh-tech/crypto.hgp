@@ -22,7 +22,8 @@
          Name GeneralName
          GeneralNames
          UnauthAttributes
-         relation-ref)
+         relation-ref
+         relation)
 ;;=======================================================================================
 ;; CMS signature (former pkcs7) definitions to build the asn1 signature structures for serialize / deserialice
 ;;========================================================================================

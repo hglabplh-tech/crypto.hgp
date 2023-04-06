@@ -4,6 +4,7 @@
   "asn1-to-classes.rkt"
   "asn1-oids.rkt"
   "interfaces.rkt"
+  "asn1-utils.rkt"
   asn1        
   racket/class
   racket/pretty
@@ -12,14 +13,7 @@
 
 
 
-(define read-bytes-from-file
-  (lambda (fname)
-    (let*([port (open-file-input-port fname)]
-          [reader (make-binary-reader port)]
-          {file-size (file-size fname)}
-          )
-      (b-read-bytes reader file-size)
-      )))
+
 (define test-Bytes->ASN1(lambda (fname)
                           (let ([bytes (read-bytes-from-file fname)])
                             (bytes->asn1 ContentInfo bytes))))
@@ -35,8 +29,8 @@
   (displayln sig-info-list)
   (printf "digest algorithms in signed data :\n~a\n" (send signed-data get-digest-algorithms))
   (printf "encapsulated data :\n~a\n" (send signed-data get-encap-content-info #f))  
-  (printf " validy : ~a\n" (map get-cert-validity (send signed-data get-certificate-set)))
-  (printf " cert issuer : ~a\n" (map get-issuer (send signed-data get-certificate-set)))
+  (printf " validity : ~a\n" (map get-cert-validity (send signed-data get-certificate-set)))
+  (printf " cert issuer : ~a\n" (map get-issuer-checked (send signed-data get-certificate-set)))
   (printf "signed attributes :\n")
   (pretty-print (map get-auth-attr sig-info-list))
   (printf "issuer and serial :\n")

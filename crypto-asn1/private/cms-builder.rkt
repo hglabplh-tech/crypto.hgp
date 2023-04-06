@@ -20,8 +20,7 @@
          racket/list         
          racket/serialize
          asn1
-         racket/pretty
-         x509         
+         racket/pretty     
          asn1/util/time
          "interfaces.rkt"
          "cmssig-asn1.rkt"
@@ -65,7 +64,14 @@
 
 (pretty-print (check-and-make-sequence signed-data-seq 
                                        (list 1 'digestAlg 'encapContent #f #f 'sig-infos)))
-(pretty-print (check-and-make-choice sid-choice (list 'issuerAndSerialNumber
- (check-and-make-sequence issuer-and-serial-seq (list 'issuer 12345)))))
-(pretty-print (check-and-make-choice  recipient-info-choice (list 'pwri 'geheim)))
-;;(pretty-print (check-and-make-choice  recipient-info-choice-def (list 'not-there 'geheim)))
+(let ([cert-val-getter  (make-cert-val-getter
+                     (read-bytes-from-file "data/freeware-user-cert.der"))])  
+  (pretty-print
+   (check-and-make-choice sid-choice
+                          (list 'issuerAndSerialNumber
+                                (check-and-make-sequence issuer-and-serial-seq
+                                                         (list (get-issuer-checked cert-val-getter)
+                                                               (get-serial-checked cert-val-getter)))))))
+
+  (pretty-print (check-and-make-choice  recipient-info-choice (list 'pwri 'geheim)))
+  ;;(pretty-print (check-and-make-choice  recipient-info-choice-def (list 'not-there 'geheim)))
