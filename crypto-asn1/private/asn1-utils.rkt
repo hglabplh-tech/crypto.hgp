@@ -19,6 +19,8 @@
          racket/match
          rnrs/io/ports-6
          binaryio/reader
+         racket/string
+         racket/date
          "cmssig-asn1.rkt"
          "certificates-asn1.rkt"
          "asn1-oids.rkt")
@@ -80,6 +82,14 @@
     [(list 'generalTime s)
      (asn1-generalized-time->seconds s)]))
 
+(define (date-time->asn1-time time)
+  (date-display-format 'iso-8601)  
+  (list (list 'generalTime  (string-append (string-replace (string-replace
+                             (string-replace
+                             (date->string time #t) "-" "") "T" "")
+                                           ":" "") "Z"))))
+        
+         
 (define (asn1-time->date-time attr-value)
   (seconds->date (asn1-times->seconds attr-value)))
 
@@ -164,7 +174,7 @@
                              (equal? (car val-list) #f))
                         (error 'seq-mandatory-not-set)]
                        [else (recur-defs (cdr seq-defs) (cdr val-list)
-                                         (append result-keys (list (car (car seq-defs)))))])])))
+                                         (append result-keys (list (caar seq-defs))))])])))
            
            
                               
@@ -189,8 +199,9 @@
   (list key value))
 
 ;; this is defined because the internal definition can change
-(define (make-set-of comp-list)
-  comp-list)
+(define make-set-of
+         (lambda comp-list
+           comp-list))
                 
 
 ;; other utils
@@ -254,6 +265,10 @@
                cert-ref-val]
               [else #f])))))
 
+(define (cert->asn1/DER cert/DER)
+  (let* ([cert-asn1 (bytes->asn1/DER Certificate cert/DER)])
+         cert-asn1))
+
 (define (get-validity-date-time validity)
   (map seconds->date (get-validity-seconds validity)))
 
@@ -283,7 +298,15 @@
            serial]
           [else (error 'serial-invalid)])
            
-           ))
+           )) 
+
+(define (get-sig-alg-checked cert-val-getter)
+  (let ([sig-alg (cert-val-getter 'signature)])
+     (cond [sig-alg
+          sig-alg]
+          [else (error 'serial-invalid)])
+           
+           )) 
                               
                                 
            

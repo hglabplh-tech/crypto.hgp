@@ -15,7 +15,9 @@
 
 #lang racket/base
 (require asn1 asn1/util/names
-         "basesig-asn1.rkt")
+         "asn1-oids.rkt"
+         "basesig-asn1.rkt"
+         )
          
 (provide (all-defined-out))
 
