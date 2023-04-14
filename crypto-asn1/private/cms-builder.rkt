@@ -59,6 +59,10 @@
                          (list 'signature #t)
                          (list 'unsignedAttrs #f)))
 
+(define content-info-seq (list  
+                          (list 'contentType #t)        
+                          (list 'content #t)))
+
 (define certificate-choice  (list
                              'certificate
                              'extendedCertificate
@@ -87,8 +91,8 @@
 (define (build-alg-id id params)
   (check-and-make-sequence algo-id-seq (list id params)))
 
-(define (build-sid cert-file-name) 
-  (let ([cert-val-getter  (build-cert-val-getter cert-file-name)])
+(define (build-sid cert-bytes) 
+  (let ([cert-val-getter  (build-cert-val-getter cert-bytes)])
     (check-and-make-choice sid-choice
                            (list 'issuerAndSerialNumber
                                  (check-and-make-sequence issuer-and-serial-seq
@@ -107,46 +111,70 @@
                                               (list id-message-digest (list digest-val)))])
     (make-set-of content-type-attr signing-time-attr digest-attr)))
 
-(define (build-cert-val-getter cert-file-name)
+(define (build-cert-val-getter cert-bytes)
   (make-cert-val-getter
-   (read-bytes-from-file cert-file-name)))
+   cert-bytes))
 
 (define (build-certificate-set cert-bytes)
   (let ([cert-asn1 (cert->asn1/DER cert-bytes)])
     (make-set-of (check-and-make-choice certificate-choice
                                         (list 'certificate cert-asn1)))))
-
-(define (build-signer-info signer-cert-fname digest-alg private-key)
+;; in the following we have to introduce lambda for signature and digest taking the neccessary arguments
+;; data and algorithm....
+(define (build-signer-info cert-bytes digest-alg private-key
+                           calc-digest-proc
+                           sign-digest-proc content-bytes)
   (let* ([version 1];; here we need a cond
-         [sid (build-sid signer-cert-fname)]
-         [cert-val-get (build-cert-val-getter signer-cert-fname)]
-         [signed-attrs (build-signed-attributes  #"AAAAABBCC987693" )] ;; next to be implemented
-         [sig-algo (get-sig-alg-checked cert-val-get)]
-         [signature #"AAAAA"] ;; call callback to build signature
+         [sid (build-sid cert-bytes)]
+         [digest-alg-id (asn1->bytes/DER OBJECT-IDENTIFIER
+                                         (hash-ref digest-alg 'algorithm))]
+         [digest (calc-digest-proc digest-alg-id content-bytes)]
+         [cert-val-get (build-cert-val-getter cert-bytes)]
+         [signed-attrs (build-signed-attributes digest)];; next to be implemented        
+         [sig-alg (get-sig-alg-checked cert-val-get)]
+         [signature (sign-digest-proc digest-alg-id private-key
+                                      (asn1->bytes/DER SignedAttributes signed-attrs))] ;; call callback to build signature
          )
     (check-and-make-sequence signer-info-seq (list version sid digest-alg
-                                                   signed-attrs sig-algo signature #f))))
+                                                   signed-attrs sig-alg signature #f))))
   
 
 
 
 (define (build-signed-data digest-alg content-bytes cert-bytes crls signer-infos) 
   (check-and-make-sequence signed-data-seq 
-                                       (list 1
-                                             (make-set-of digest-alg)
-                                             (check-and-make-sequence
-                                              encap-content-info-seq (list id-cms-data content-bytes))
-                                              (cond [cert-bytes ;; complete this to real sequence
-                                                     (build-certificate-set cert-bytes)]
-                                                    [else cert-bytes])
-                                              crls signer-infos)))
+                           (list 1
+                                 (make-set-of digest-alg)
+                                 (check-and-make-sequence
+                                  encap-content-info-seq (list id-cms-data content-bytes))
+                                 (cond [cert-bytes ;; complete this to real sequence
+                                        (build-certificate-set cert-bytes)]
+                                       [else cert-bytes])
+                                 crls signer-infos)))
 
-(build-signed-data
- (build-alg-id id-sha512 #f)
- (read-bytes-from-file "example.rkt")
- (read-bytes-from-file "data/freeware-user-cert.der")
- #f
- (make-set-of (build-signer-info "data/freeware-user-cert.der" (build-alg-id id-sha512 #f) 'priv-key)))
+(define (build-cms-content type content)
+  (check-and-make-sequence content-info-seq (list type content)))
+
+(let ([content-data  (build-cms-content
+                      id-cms-signed-data
+
+                      (build-signed-data
+                       (build-alg-id id-sha512 #f)
+                       (read-bytes-from-file "example.rkt")
+                       (read-bytes-from-file "data/freeware-user-cert.der")
+                       #f
+                       (make-set-of
+                        (build-signer-info (read-bytes-from-file "data/freeware-user-cert.der")
+                                           (build-alg-id id-sha512 #f) 'priv-key
+                                           (lambda (digest-alg data) (string->bytes/latin-1 "fff8889977ddde"))
+                                           (lambda (signature-alg priv-key digest) (string->bytes/latin-1 "fff8889977afea"))
+                                           (read-bytes-from-file "example.rkt")))
+                      ))])
+  (printf "content data: \n")
+  (pretty-print content-data)
+  (printf "content data -> DER -> ASN.1: \n")
+  (pretty-print (bytes->asn1/DER ContentInfo (asn1->bytes/DER ContentInfo content-data))))
+      
 
 
 (pretty-print (check-and-make-choice  recipient-info-choice (list 'pwri 'geheim)))

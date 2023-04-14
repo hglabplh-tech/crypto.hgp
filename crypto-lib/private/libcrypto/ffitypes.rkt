@@ -20,8 +20,7 @@
          ffi/unsafe/define
          ffi/unsafe/alloc
          ffi/unsafe/atomic
-         openssl/libcrypto
-         "ffi.rkt"
+         openssl/libcrypto         
          "../common/error.rkt")
 (provide (all-defined-out))
 

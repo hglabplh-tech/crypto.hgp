@@ -19,8 +19,7 @@
 (require ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/alloc
-         ffi/unsafe/atomic
-         openssl/libcrypto
+         ffi/unsafe/atomic         
          openssl/sha1
          "ffitypes.rkt"
          "../common/error.rkt"

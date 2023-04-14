@@ -15,12 +15,16 @@
 ;; along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 #lang racket/base
-(require ffi/unsafe
+(require (for-syntax racket/base)
+  ffi/unsafe
          ffi/unsafe/define
          ffi/unsafe/alloc
          ffi/unsafe/atomic
-         openssl/libcrypto
-         "../common/error.rkt")
+         ;;openssl/libcrypto
+          racket/runtime-path
+         "../common/error.rkt"
+         "ffitypes.rkt"
+         "../common/ffi.rkt")
 (provide (protect-out (all-defined-out))
          libcrypto)
 
@@ -29,9 +33,16 @@
 ;; ============================================================
 ;; Library initialization & error-catching wrappers
 
+(define-runtime-path libcrypto-so
+    '(so "libcrypto"))
+
+(define-values (libcrypto libcrypto-load-error)
+  (ffi-lib-or-why-not libcrypto-so '(#f)))
+
 (define-ffi-definer define-crypto libcrypto
   #:default-make-fail make-not-available)
-(define libcrypto-load-error libcrypto-load-fail-reason)
+
+;;(define libcrypto-load-error libcrypto-load-fail-reason)
 
 (define-crypto SSLeay (_fun -> _long) #:fail (K (K #f)))
 (define-crypto OpenSSL_version_num (_fun -> _long) #:fail (K SSLeay))
@@ -124,6 +135,9 @@
   (memcpy res outbuf outlen2)
   res)
 
+
+(define-crypto OBJ_obj2nid
+  (_fun _ASN1_OBJECT -> _int))
 (define-crypto OBJ_nid2sn
   (_fun _int -> _string/utf-8))
 (define-crypto OBJ_nid2ln
@@ -218,6 +232,32 @@
 
 (define-crypto EVP_get_digestbyname
   (_fun _string -> _EVP_MD/null))
+
+;; function needed to get EVP_MD by object from DER encoded OBJECT-IDENTIFIER
+;;ASN1_OBJECT *d2i_ASN1_OBJECT(ASN1_OBJECT **a, unsigned char **pp, long length);
+;;void ASN1_OBJECT_free(ASN1_OBJECT *a);
+(define-crypto ASN1_OBJECT_free (_fun _ASN1_OBJECT -> _void))
+  
+(define-crypto d2i_ASN1_OBJECT
+  (_fun (_pointer = #f) _dptr_to_bytes _long -> _ASN1_OBJECT/null)
+   #:wrap (compose (allocator ASN1_OBJECT_free) (err-wrap/pointer 'd2i_ASN1_OBJECT)))   
+
+;;const EVP_MD *EVP_get_digestbyobj(const ASN1_OBJECT *o);
+;;# define EVP_get_digestbynid(a) EVP_get_digestbyname(OBJ_nid2sn(a))
+;;# define EVP_get_digestbyobj(a) EVP_get_digestbynid(OBJ_obj2nid(a))
+;;int OBJ_obj2nid(const ASN1_OBJECT *o);
+;;const char *OBJ_nid2sn(int n);
+(define (EVP_get_digestbyobj obj)
+  (EVP_get_digestbynid (OBJ_obj2nid obj)))
+
+(define (EVP_get_digestbynid nid)
+  (EVP_get_digestbyname (OBJ_nid2sn nid) ))
+
+(define (get-digest-by-obj/DER digest-bytes)
+  (let ([asn1-object (d2i_ASN1_OBJECT digest-bytes
+                                      (bytes-length digest-bytes))])
+    (EVP_get_digestbyobj asn1-object)))
+
 
 (define-crypto EVP_MD_do_all_sorted
   (_fun (_fun _EVP_MD/null _string _string #| _pointer |# -> _void)
@@ -943,6 +983,10 @@
   (_fun _int (_pointer = #f) _dptr_to_bytes _long -> _EVP_PKEY/null)
   #:wrap (compose (allocator EVP_PKEY_free) (err-wrap/pointer 'd2i_PrivateKey)))
 
+(define-crypto d2i_AutoPrivateKey
+  (_fun (_pointer = #f) _dptr_to_bytes _long -> _EVP_PKEY/null)
+  #:wrap (compose (allocator EVP_PKEY_free) (err-wrap/pointer 'd2i_AutoPrivateKey)))
+
 (define-crypto i2d_PublicKey
   (_fun _EVP_PKEY (_ptr i _pointer) -> _int)
   #:wrap (err-wrap 'i2d_PublicKey))
@@ -1034,7 +1078,10 @@
 (define-crypto EVP_DigestSign
   (_fun (ctx : _EVP_MD_CTX) (sig : _pointer) (siglen : (_ptr io _size))
         (msg : _pointer) (mlen : _size)
-        -> _int)
+        -> (ret : _int)
+        -> (cond [(not (equal? sig #f))
+                        ret]
+                 [else siglen]))
   #:wrap (err-wrap 'EVP_DigestSign))
 
 (define-crypto EVP_DigestVerifyInit

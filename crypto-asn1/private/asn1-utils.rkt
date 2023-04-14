@@ -83,11 +83,15 @@
      (asn1-generalized-time->seconds s)]))
 
 (define (date-time->asn1-time time)
-  (date-display-format 'iso-8601)  
-  (list (list 'generalTime  (string-append (string-replace (string-replace
-                             (string-replace
-                             (date->string time #t) "-" "") "T" "")
-                                           ":" "") "Z"))))
+  (date-display-format 'iso-8601)
+  (let ([date-string (string-append (string-replace (string-replace
+                                                     (string-replace
+                                                      (date->string time #t) "-" "") "T" "")
+                                                    ":" "") "Z")])
+    (printf "date string : ~a\n" date-string)
+    (cond [(asn1-generalized-time? date-string)
+           (make-set-of (list 'generalTime  date-string))]
+          [else (error 'time-string-invalid)]))) ;; FIXME: define the choice for time
         
          
 (define (asn1-time->date-time attr-value)
@@ -200,8 +204,8 @@
 
 ;; this is defined because the internal definition can change
 (define make-set-of
-         (lambda comp-list
-           comp-list))
+  (lambda comp-list
+    comp-list))
                 
 
 ;; other utils
@@ -267,15 +271,15 @@
 
 (define (cert->asn1/DER cert/DER)
   (let* ([cert-asn1 (bytes->asn1/DER Certificate cert/DER)])
-         cert-asn1))
+    cert-asn1))
 
 (define (get-validity-date-time validity)
   (map seconds->date (get-validity-seconds validity)))
 
 (define (get-validity-seconds validity)
   (cond [(hash? validity)               
-     (list (asn1-time->seconds (hash-ref validity 'notBefore))
-                               (asn1-time->seconds (hash-ref validity 'notAfter)))] 
+         (list (asn1-time->seconds (hash-ref validity 'notBefore))
+               (asn1-time->seconds (hash-ref validity 'notAfter)))] 
         [else (error 'validity-invalid)]))
 
 (define (get-validity-date-time-checked cert-val-getter)
@@ -290,7 +294,7 @@
            issuer]
           [else (error 'issuer-invalid)])
            
-           ))
+    ))
 
 (define (get-serial-checked cert-val-getter)
   (let* ([serial (cert-val-getter 'serialNumber)])
@@ -298,15 +302,15 @@
            serial]
           [else (error 'serial-invalid)])
            
-           )) 
+    )) 
 
 (define (get-sig-alg-checked cert-val-getter)
   (let ([sig-alg (cert-val-getter 'signature)])
-     (cond [sig-alg
-          sig-alg]
+    (cond [sig-alg
+           sig-alg]
           [else (error 'serial-invalid)])
            
-           )) 
+    )) 
                               
                                 
            
