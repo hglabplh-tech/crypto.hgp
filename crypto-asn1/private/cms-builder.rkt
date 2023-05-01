@@ -77,6 +77,10 @@
 
 (define issuer-and-serial-seq (list (list 'issuer #t)
                                     (list 'serialNumber #t)))
+
+(define SMIME-capability-seq (list 
+                              (list 'capabilityID #t)
+                              (list 'parameters #f)))
 ;;enveloped
 
 (define recipient-info-choice (list
@@ -97,7 +101,27 @@
                            (list 'issuerAndSerialNumber
                                  (check-and-make-sequence issuer-and-serial-seq
                                                           (list (get-issuer-checked cert-val-getter)
+
                                                                 (get-serial-checked cert-val-getter)))))))
+(define (smime-cap id param)
+  (check-and-make-sequence SMIME-capability-seq                            
+                           (list id (cond [param
+                                           (make-choice 'int-val param)]
+                                          [else param]))));; may be change definitions of parameters
+
+(define (standard-smime-caps)
+  (list (smime-cap id-gost-r-3411-2012-256 #f)
+        (smime-cap id-gost-r-3411-2012-512 #f)
+        (smime-cap id-gost-r-3411-94 #f)
+        (smime-cap id-gost-r-3411-89 #f)
+        (smime-cap id-aes192-CBC #f)
+        (smime-cap id-aes128-CBC #f)
+        (smime-cap id-des-ede3-cbc #f)
+        (smime-cap id-des-cbc #f)
+        (smime-cap id-rc2-cbc 128)
+        (smime-cap id-rc2-cbc 64)
+        (smime-cap id-rc2-cbc 40)
+        ))
 
 (define (build-signed-attributes digest-val)
   (date-display-format 'iso-8601)
@@ -107,9 +131,12 @@
         [signing-time-attr (check-and-make-sequence cms-attribute-seq
                                                     (list id-signing-time
                                                           (date-time->asn1-time (current-date))))]
+        [smime-cap-attrs (check-and-make-sequence cms-attribute-seq
+                                                  (list id-smime-capabilities
+                                                        (list (standard-smime-caps))))]
         [digest-attr (check-and-make-sequence cms-attribute-seq 
                                               (list id-message-digest (list digest-val)))])
-    (make-set-of content-type-attr signing-time-attr digest-attr)))
+    (make-set-of content-type-attr signing-time-attr digest-attr smime-cap-attrs)))
 
 (define (build-cert-val-getter cert-bytes)
   (make-cert-val-getter
@@ -360,9 +387,12 @@
     
     ;; add the missing setters / add content / add parent set and end
     (define/public (build-asn1)
-      (build-signer-info cert-bytes digest-alg private-key
-                         calc-digest-proc
-                         sign-digest-proc content-bytes))
+      (cond [(and cert-bytes digest-alg private-key content-bytes
+                  calc-digest-proc sign-digest-proc)
+             (build-signer-info cert-bytes digest-alg private-key
+                                calc-digest-proc
+                                sign-digest-proc content-bytes)]
+            [else (error 'not-all-sig-info-values-set)]))
     
 
     ))

@@ -25,6 +25,10 @@
 (define pkcs-3 (build-OID rsadsi (pkcs 1) 3))
 (define pkcs-5 (build-OID rsadsi (pkcs 1) 5))
 (define pkcs-9 (build-OID rsadsi (pkcs 1) 9))
+
+
+
+  
 ;; signed attributes OIDS
 (define id-smime-capabilities (build-OID rsadsi (pkcs 1) 9 15))
 ;;{iso(1) member-body(2) us(840) rsadsi(113549) pkcs(1)
@@ -90,6 +94,14 @@
 (define id-pkix
   (OID (iso 1) (identified-organization 3) (dod 6) (internet 1) (security 5)
        (mechanisms 5) (pkix 7)))
+
+(define iso-member-body (OID (iso 1) (member-body 2)))
+(define id-tc26  (build-OID iso-member-body 643 7 1))
+(define id-cryptopro (build-OID iso-member-body 643 2 2))
+(define id-tc-algorithms (build-OID id-tc26 1))
+(define id-tc-digest (build-OID id-tc-algorithms 2))
+(define id-des-algorithm (OID 1 3 14 3 2))
+
 
 
 (define id-pe (build-OID id-pkix 1))
@@ -206,6 +218,11 @@
 (define pbeWithSHA1AndDES-CBC (build-OID pkcs-5 10))
 (define pbeWithSHA1AndRC2-CBC (build-OID pkcs-5 11))
 
+(define id-des-ede3-cbc (build-OID rsadsi 3 7))
+(define id-rc2-cbc (build-OID rsadsi 3 2))
+(define id-des-cbc(build-OID id-des-algorithm 7))
+                   
+
 (define id-PBES2 (build-OID pkcs-5 13))
 (define id-PBMAC1 (build-OID pkcs-5 14))
 
@@ -309,4 +326,11 @@
 (define id-mgf1 (build-OID pkcs-1 8))
 (define id-pSpecified (build-OID pkcs-1 9))
 (define id-RSASSA-PSS (build-OID pkcs-1 10))
+
+;; GOST algorithms
+(define id-gost-r-3411-2012-256 (build-OID id-tc-digest 2))
+(define id-gost-r-3411-2012-512 (build-OID id-tc-digest 3))
+
+(define id-gost-r-3411-94 (build-OID id-cryptopro 9))
+(define id-gost-r-3411-89 (build-OID id-cryptopro 22))
 
