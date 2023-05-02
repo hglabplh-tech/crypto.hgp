@@ -16,9 +16,13 @@
 #lang racket/base
 (require ffi/unsafe
          racket/class
+         racket/pretty
          asn1
-         "../common/asn1.rkt" ;;import for test delete if tested
-          "cmssig.rkt" ;; only for quick test
+         ;;"../common/asn1.rkt"
+         "../crypto-asn1/private/cmssig-asn1.rkt"
+         "../crypto-asn1/private/cms-builder.rkt" ;;import for test delete if tested
+         "../crypto-asn1/private/asn1-oids.rkt"
+         "cmssig.rkt" ;; only for quick test
          "ffi.rkt")
 (provide (all-defined-out))
 
@@ -26,9 +30,9 @@
 
 (define (calc-digest-proc digest-alg-id/DER data)
   (let* ([evp-md (get-digest-by-obj/DER digest-alg-id/DER)]
-        [ctx (EVP_MD_CTX_create)]
-        [size (EVP_MD_size evp-md)]
-        [outbuf (make-bytes size)])                            
+         [ctx (EVP_MD_CTX_create)]
+         [size (EVP_MD_size evp-md)]
+         [outbuf (make-bytes size)])                            
     (EVP_Digest data (bytes-length data) outbuf evp-md)
     (EVP_MD_CTX_destroy ctx)
     outbuf))
@@ -55,4 +59,45 @@
 (sign-digest-proc (asn1->bytes/DER OBJECT-IDENTIFIER id-sha512)
                   (read-bytes-from-file  "data/freeware-user-key.der")  ;; as key
                   (read-bytes-from-file  "data/freeware-user-key.der")) ;; key as data
-    
+
+(let ([content-data  (build-cms-content
+                      id-cms-signed-data
+                      (send+ (new signed-data-builder%)                      
+                             (add-content-bytes
+                              (read-bytes-from-file "cms-ffi.rkt"))                      
+                             (add-signer-info)
+                             (add-digest-alg
+                              (build-alg-id id-sha512 #f))
+                             (add-cert-bytes
+                              (read-bytes-from-file "data/freeware-user-cert.der"))
+                             (add-private-key
+                             (read-bytes-from-file "data/freeware-user-key.der"))
+                             (add-calc-digest-proc
+                              calc-digest-proc)
+                             (add-sign-digest-proc
+                              sign-digest-proc)
+                             (end-def)
+                             (add-signer-info)
+                             (add-digest-alg
+                              (build-alg-id id-sha512 #f))
+                             (add-cert-bytes
+                              (read-bytes-from-file "data/freeware-user-cert_1.der"))
+                             (add-private-key
+                               (read-bytes-from-file "data/freeware-user-key_1.der"))
+                             (add-calc-digest-proc
+                              calc-digest-proc)
+                              (add-sign-digest-proc
+                              sign-digest-proc)
+                             (end-def)
+                             (build-asn1))
+                      )]) (printf "==================================================================\n")
+  (printf "=========== CLASSES LOGIC ==================\n" )
+  (printf "==================================================================\n" )
+  (printf "content data: \n")
+  (pretty-print content-data)
+  (printf "content data -> DER -> ASN.1: \n")
+  (write-bytes-to-file "data/racket.pkcs7" (asn1->bytes/DER ContentInfo content-data))
+  (pretty-print (bytes->asn1/DER ContentInfo (asn1->bytes/DER ContentInfo content-data))))
+
+
+
