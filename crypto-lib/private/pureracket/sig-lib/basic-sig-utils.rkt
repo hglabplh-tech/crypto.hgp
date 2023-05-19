@@ -22,6 +22,51 @@
          
 (provide (all-defined-out))
 
+(struct rel (heading tuples) #:transparent)
+(define (relation* heading tuples)
+  (define nfields (vector-length heading))
+  (for ([tuple (in-vector tuples)])
+    (unless (= (vector-length tuple) nfields)
+      (error 'relation "wrong number of fields\n  expected: ~s fields\n  tuple: ~e"
+             nfields tuple)))
+  (rel heading tuples))
+(define-syntax-rule (relation #:heading [field ...] #:tuples [value ...] ...)
+  (relation* (vector field ...) (vector (vector value ...) ...)))
+
+(define (relation-field-index rel keyfield #:who [who 'relation-field-index])
+  (or (for/first ([field (in-vector (rel-heading rel))]
+                  [index (in-naturals)]
+                  #:when (equal? field keyfield))
+        index)
+      (error who "field not found in relation\n  field: ~e\n  heading: ~e"
+             keyfield (rel-heading rel))))
+
+(define (relation-find rel keyfield key #:who [who 'relation-find])
+  (define keyindex (relation-field-index rel keyfield #:who who))
+  (for/first ([tuple (in-vector (rel-tuples rel))]
+              #:when (equal? (vector-ref tuple keyindex) key))
+    tuple))
+
+(define (relation-ref rel keyfield key wantfield #:who [who 'relation-ref])
+  (cond [(relation-find rel keyfield key #:who who)
+         => (lambda (tuple)
+              (vector-ref tuple (relation-field-index rel wantfield #:who who)))]
+        [else #f]))
+
+(define (relation-ref* rel keyfield key wantfields #:who [who 'relation-ref])
+  (cond [(relation-find rel keyfield key #:who who)
+         => (lambda (tuple)
+              (map (lambda (wantfield)
+                     (vector-ref tuple (relation-field-index rel wantfield #:who who)))
+                   wantfields))]
+        [else #f]))
+
+(define (relation-column rel keyfield #:who [who 'relation-column])
+  (define keyindex (relation-field-index rel keyfield #:who who))
+  (for/vector ([tuple (in-vector (rel-tuples rel))])
+    (vector-ref tuple keyindex)))
+
+
 
 (define (sqrt x)
   (foldl (lambda (_ y) (/ (+ (/ x y) y) 2)) 4 (iota 7)))
