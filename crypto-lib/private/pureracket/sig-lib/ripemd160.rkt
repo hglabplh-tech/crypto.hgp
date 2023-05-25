@@ -179,6 +179,15 @@
 (define (assign-reg-to-reg regs s t)  
     (hash-set regs t (hash-ref regs s #f)))
 
+(define (assign-regs regs reg-pairs-in)
+  (let recur-regs ([reg-pairs reg-pairs-in]
+                   [regs-out regs])
+    (cond [(null? reg-pairs) regs-out]
+          [else (let ([first-pair (car reg-pairs)])
+                      (recur-regs
+                       (cdr reg-pairs)
+                       (assign-regs regs-out (car first-pair) (cadr first-pair))))]))) 
+
 (define (rel-bytes-ref rel-ref index byte-ind)
   (let ([byte-vect (rel-ref index)])
     (bytes-ref byte-vect byte-ind)))

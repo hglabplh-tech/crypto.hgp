@@ -23,6 +23,11 @@
          
 (provide (all-defined-out))
 
+(struct md-ctx (
+                alg-id
+                state-by-alg-id))
+                
+
 
 (struct ripe_md_state (
     hash               ;;/* The current hash state */
