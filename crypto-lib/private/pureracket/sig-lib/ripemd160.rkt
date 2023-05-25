@@ -165,3 +165,21 @@
 
 (define (KR-ref index)
   (relation-ref KR 'index index 'constant))
+
+(define T (box 0))
+
+(define(make-regs-left al bl cl dl el)
+  (make-hasheq 
+   (cons 'AL  al) (cons 'BL bl) (cons 'CL cl) (cons 'DL dl) (cons 'EL el)))
+
+(define (make-regs-right  ar br cr dr er)
+  (make-hasheq 
+   (cons 'AR  ar) (cons 'BR br) (cons 'CR cr) (cons 'DR dr) (cons 'ER er)))
+
+(define (assign-reg-to-reg regs s t)  
+    (hash-set regs t (hash-ref regs s #f)))
+
+(define (rel-bytes-ref rel-ref index byte-ind)
+  (let ([byte-vect (rel-ref index)])
+    (bytes-ref byte-vect byte-ind)))
+
