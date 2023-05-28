@@ -169,26 +169,62 @@
 (define T (box 0))
 
 (define(make-regs-left al bl cl dl el)
-  (make-hasheq 
-   (cons 'AL  al) (cons 'BL bl) (cons 'CL cl) (cons 'DL dl) (cons 'EL el)))
+  (hasheq 
+   'AL  al 'BL bl 'CL cl 'DL dl 'EL el))
 
 (define (make-regs-right  ar br cr dr er)
   (make-hasheq 
-   (cons 'AR  ar) (cons 'BR br) (cons 'CR cr) (cons 'DR dr) (cons 'ER er)))
+   (list (cons 'AR  ar) (cons 'BR br) (cons 'CR cr) (cons 'DR dr) (cons 'ER er))))
 
-(define (assign-reg-to-reg regs s t)  
-    (hash-set regs t (hash-ref regs s #f)))
+(define (assign-reg-to-reg regs t s)  
+  (hash-set regs t (hash-ref regs s #f)))
+
+(define (set-reg regs sym val)
+  (hash-set regs sym val))
 
 (define (assign-regs regs reg-pairs-in)
   (let recur-regs ([reg-pairs reg-pairs-in]
                    [regs-out regs])
     (cond [(null? reg-pairs) regs-out]
           [else (let ([first-pair (car reg-pairs)])
-                      (recur-regs
-                       (cdr reg-pairs)
-                       (assign-regs regs-out (car first-pair) (cadr first-pair))))]))) 
+                  (recur-regs
+                   (cdr reg-pairs)
+                   (assign-reg-to-reg regs-out (car first-pair) (cadr first-pair))))]))) 
 
 (define (rel-bytes-ref rel-ref index byte-ind)
   (let ([byte-vect (rel-ref index)])
     (bytes-ref byte-vect byte-ind)))
 
+(define regs-assign-left (list
+                          (list 'AL 'EL)
+                          (list 'EL 'DL)))
+
+(define regs-assign-right (list
+                           (list 'AR 'ER)
+                           (list 'ER 'DR)))
+
+;; make bufw as vector of integers then build the line call-with-values bufw reg-left reg-right t
+(define (round-calculation bufw regs-left regs-right round)
+  (let recur-w ([w 0]
+                [regs-l regs-left]
+                [regs-r regs-right])
+    (cond [(eq? w 16)
+           (values bufw regs-l regs-r (add1 round))]
+          [else 
+           (let* ([tl 0] ;; here add the lines for tl/tr 
+                  [tr 0])
+             (recur-w (add1 w)
+                      (set-reg (assign-reg-to-reg
+                                (set-reg
+                                 (assign-regs regs-left regs-assign-left)
+                                 'DL
+                                 (rotl (u32+ 10) (hash-ref regs-left 'CL #f) 32)
+                                 'CL 'BL)
+                                'BL tl))                      
+                               (set-reg (assign-reg-to-reg
+                                         (set-reg
+                                          (assign-regs regs-right regs-assign-right)
+                                          'DR
+                                          (rotl (u32+ 10) (hash-ref regs-left 'CR #f) 32)
+                                          'CR 'BR)
+                                         'BR tr))))])))
