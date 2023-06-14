@@ -18,7 +18,9 @@
          (only-in srfi/60 rotate-bit-field)
          binaryio/integer
          rnrs/arithmetic/bitwise-6
-         "basic-sig-utils.rkt"         
+         "basic-sig-utils.rkt"
+         "endianess.rkt"
+         "md-ctx.rkt"
          )
 
 (provide (all-defined-out))
@@ -220,56 +222,93 @@
 (define (bool-funs-ref index list-fun)
   (list-fun (relation-ref bool-funs-rel 'index index 'fun-pair-lr)))
 
+(define (init-bufw hash-state)
+  (let ([buffer (ripe-md-state-buffer hash-state)])
+    (let fill-buf ([w 0]
+                   [val-list null])
+      (cond [(eq? w 16)
+             (list->vector val-list)]
+            [else (fill-buf
+                   (add1 w)
+                   (append val-list
+                           (list
+                            (bytes->32-little
+                             (subbytes buffer (* w 4) (+ (* w 4) 4)))))
+                   )])
+      )))
+
+(define (init-regs hash-state)
+  (values
+   (make-regs-left
+    (vector-ref (ripe-md-state-hash hash-state) 0)
+    (vector-ref (ripe-md-state-hash hash-state) 1)
+    (vector-ref (ripe-md-state-hash hash-state) 2)
+    (vector-ref (ripe-md-state-hash hash-state) 3)
+    (vector-ref (ripe-md-state-hash hash-state) 4))
+   (make-regs-right
+    (vector-ref (ripe-md-state-hash hash-state) 0)
+    (vector-ref (ripe-md-state-hash hash-state) 1)
+    (vector-ref (ripe-md-state-hash hash-state) 2)
+    (vector-ref (ripe-md-state-hash hash-state) 3)
+    (vector-ref (ripe-md-state-hash hash-state) 4))))
+
+  
+
 ;; make bufw as vector of integers then build the line call-with-values bufw reg-left reg-right t
-(define (rounds-calculation bufw regs-left regs-right)
-  (let recur-round-of-calc ([round-of-calc 0]
-                            [w 0]
-                            [regs-l regs-left]
-                            [regs-r regs-right])
-    (cond [(eq? w 16)
-           (cond [(eq? round-of-calc 5)
-                  (list)];; final calc
-                 [else recur-round-of-calc (add1 round-of-calc) 0 regs-l regs-r])]
+(define (compress-fun hash-state)
+  ;; assignment from buffer to bufw
+  (let ([bufw (init-bufw hash-state)]);; replace this
+    ;; assignment from  hash state to registers
+    (let-values ([(regs-left regs-right) (init-regs hash-state)])
+      (let recur-round-of-calc ([round-of-calc 0]
+                                [w 0]
+                                [regs-l regs-left]
+                                [regs-r regs-right])
+        (cond [(eq? w 16)
+               (cond [(eq? round-of-calc 5)
+                      (list)];; final calc ;; fill hash state ;; next TODO give back new hash-state
+                     [else recur-round-of-calc (add1 round-of-calc) 0 regs-l regs-r])]
                  
-          [else 
-           (let* ([sr-value (rel-list-ref SR-ref round-of-calc w)]
-                  [sl-value (rel-list-ref SL-ref round-of-calc w)]
-                  [rr-value (rel-list-ref RR-ref round-of-calc w)]
-                  [rl-value (rel-list-ref RL-ref round-of-calc w)]
-                  [kr-value (KR-ref round-of-calc)]
-                  [kl-value (KL-ref round-of-calc)]
-                  [tl (+ (rotl (u32+ sl-value) 
-                               (+ (regs-ref regs-l 'AL)
-                                  ((bool-funs-ref round-of-calc car)
-                                   (regs-ref regs-l 'BL)
-                                   (regs-ref regs-l 'CL)
-                                   (regs-ref regs-l 'DL))
-                                  (vector-ref bufw rl-value)
-                                  kl-value) 32)
-                         (regs-ref regs-l 'EL))] ;; here add the lines for tl/tr 
-                  [tr (+ (rotl (u32+ sr-value) 
-                               (+ (regs-ref regs-r 'AR)
-                                  ((bool-funs-ref round-of-calc cadr)
-                                   (regs-ref regs-r 'BR)
-                                   (regs-ref regs-r 'CR)
-                                   (regs-ref regs-r 'DR))
-                                  (vector-ref bufw rr-value)
-                                  kr-value) 32)
-                         (regs-ref regs-r 'ER))])
-             (recur-round-of-calc
-              (add1 w)
-              round-of-calc
-              (set-reg (assign-reg-to-reg
-                        (set-reg
-                         (assign-regs regs-l regs-assign-left)
-                         'DL
-                         (rotl (u32+ 10) (regs-ref regs-l 'CL) 32)
-                         'CL 'BL)
-                        'BL tl))                      
-              (set-reg (assign-reg-to-reg
-                        (set-reg
-                         (assign-regs regs-r regs-assign-right)
-                         'DR
-                         (rotl (u32+ 10) (regs-ref regs-r 'CR) 32)
-                         'CR 'BR)
-                        'BR tr))))])))
+              [else 
+               (let* ([sr-value (rel-list-ref SR-ref round-of-calc w)]
+                      [sl-value (rel-list-ref SL-ref round-of-calc w)]
+                      [rr-value (rel-list-ref RR-ref round-of-calc w)]
+                      [rl-value (rel-list-ref RL-ref round-of-calc w)]
+                      [kr-value (KR-ref round-of-calc)]
+                      [kl-value (KL-ref round-of-calc)]
+                      [tl (+ (rotl (u32+ sl-value) 
+                                   (+ (regs-ref regs-l 'AL)
+                                      ((bool-funs-ref round-of-calc car)
+                                       (regs-ref regs-l 'BL)
+                                       (regs-ref regs-l 'CL)
+                                       (regs-ref regs-l 'DL))
+                                      (vector-ref bufw rl-value)
+                                      kl-value) 32)
+                             (regs-ref regs-l 'EL))] ;; here add the lines for tl/tr 
+                      [tr (+ (rotl (u32+ sr-value) 
+                                   (+ (regs-ref regs-r 'AR)
+                                      ((bool-funs-ref round-of-calc cadr)
+                                       (regs-ref regs-r 'BR)
+                                       (regs-ref regs-r 'CR)
+                                       (regs-ref regs-r 'DR))
+                                      (vector-ref bufw rr-value)
+                                      kr-value) 32)
+                             (regs-ref regs-r 'ER))])
+                 (recur-round-of-calc
+                  (add1 w)
+                  round-of-calc
+                  (set-reg (assign-reg-to-reg
+                            (set-reg
+                             (assign-regs regs-l regs-assign-left)
+                             'DL
+                             (rotl (u32+ 10) (regs-ref regs-l 'CL) 32))
+                             'CL 'BL)
+                            'BL tl)                      
+                  (set-reg (assign-reg-to-reg
+                            (set-reg
+                             (assign-regs regs-r regs-assign-right)
+                             'DR
+                             (rotl (u32+ 10) (regs-ref regs-r 'CR) 32))
+                             'CR 'BR)
+                            'BR tr)))])))))
+

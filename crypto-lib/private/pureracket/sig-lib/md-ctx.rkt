@@ -25,11 +25,14 @@
 
 (struct md-ctx (
                 alg-id
+                init-proc-by-alg-id
+                update-proc-by-alg-id
+                md-final-proc-by-alg-id
                 state-by-alg-id))
                 
 
 
-(struct ripe_md_state (
+(struct ripe-md-state (
     hash               ;;/* The current hash state */
     length             ;;/* Total number of _bits_ (not bytes) added to the
                        ;;    hash.  This includes bits that have been buffered
@@ -38,5 +41,5 @@
     bufpos             ;;/* number of bytes currently in the buffer */
 ))
 
-(ripe_md_state (list #x45 #x6754 #x4546 #x89686) 5 #x8568758698689 10)
+(ripe-md-state (list #x45 #x6754 #x4546 #x89686) 5 #x8568758698689 10)
 
