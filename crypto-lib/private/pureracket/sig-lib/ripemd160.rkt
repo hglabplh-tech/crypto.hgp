@@ -253,16 +253,16 @@
 (define (return-compress-state hash-state regs-left regs-right)
   (let* (
          [t (+ (vector-ref (ripe-md-state-hash hash-state) 1)
-              (regs-ref regs-left 'CL) (regs-ref regs-right 'DR))]
+               (regs-ref regs-left 'CL) (regs-ref regs-right 'DR))]
          [hash-vect (list->vector (append (list t)
-                             (list (+ (vector-ref (ripe-md-state-hash hash-state) 2)
-                                      (regs-ref regs-left 'DL) (regs-ref regs-right 'ER)))
-                             (list (+ (vector-ref (ripe-md-state-hash hash-state) 3)
-                                      (regs-ref regs-left 'EL) (regs-ref regs-right 'AR)))
-                             (list (+ (vector-ref (ripe-md-state-hash hash-state) 4)
-                                      (regs-ref regs-left 'AL) (regs-ref regs-right 'BR)))
-                             (list (+ (vector-ref (ripe-md-state-hash hash-state) 0)
-                                      (regs-ref regs-left 'BL) (regs-ref regs-right 'CR)))))])
+                                          (list (+ (vector-ref (ripe-md-state-hash hash-state) 2)
+                                                   (regs-ref regs-left 'DL) (regs-ref regs-right 'ER)))
+                                          (list (+ (vector-ref (ripe-md-state-hash hash-state) 3)
+                                                   (regs-ref regs-left 'EL) (regs-ref regs-right 'AR)))
+                                          (list (+ (vector-ref (ripe-md-state-hash hash-state) 4)
+                                                   (regs-ref regs-left 'AL) (regs-ref regs-right 'BR)))
+                                          (list (+ (vector-ref (ripe-md-state-hash hash-state) 0)
+                                                   (regs-ref regs-left 'BL) (regs-ref regs-right 'CR)))))])
     (ripe-md-state hash-vect (ripe-md-state-length hash-state) (make-bytes 64) 0)
     ))
 
@@ -280,7 +280,7 @@
                                 [regs-r regs-right])
         (cond [(eq? w 16)
                (cond [(eq? round-of-calc 5)
-                      (return-compress-state hash-state regs-l regs-r)];; final calc ;; fill hash state ;; next TODO give back new hash-state
+                      (return-compress-state hash-state regs-l regs-r)];; give back new state
                      [else recur-round-of-calc (add1 round-of-calc) 0 regs-l regs-r])]
                  
               [else 
@@ -316,13 +316,13 @@
                              (assign-regs regs-l regs-assign-left)
                              'DL
                              (rotl (u32+ 10) (regs-ref regs-l 'CL) 32))
-                             'CL 'BL)
-                            'BL tl)                      
+                            'CL 'BL)
+                           'BL tl)                      
                   (set-reg (assign-reg-to-reg
                             (set-reg
                              (assign-regs regs-r regs-assign-right)
                              'DR
                              (rotl (u32+ 10) (regs-ref regs-r 'CR) 32))
-                             'CR 'BR)
-                            'BR tr)))])))))
+                            'CR 'BR)
+                           'BR tr)))])))))
 
