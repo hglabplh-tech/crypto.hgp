@@ -168,8 +168,6 @@
 (define (KR-ref index)
   (relation-ref KR 'index index 'constant))
 
-(define T (box 0))
-
 (define(make-regs-left al bl cl dl el)
   (hasheq 
    'AL  al 'BL bl 'CL cl 'DL dl 'EL el))
@@ -252,6 +250,22 @@
     (vector-ref (ripe-md-state-hash hash-state) 3)
     (vector-ref (ripe-md-state-hash hash-state) 4))))
 
+(define (return-compress-state hash-state regs-left regs-right)
+  (let* (
+         [t (+ (vector-ref (ripe-md-state-hash hash-state) 1)
+              (regs-ref regs-left 'CL) (regs-ref regs-right 'DR))]
+         [hash-vect (list->vector (append (list t)
+                             (list (+ (vector-ref (ripe-md-state-hash hash-state) 2)
+                                      (regs-ref regs-left 'DL) (regs-ref regs-right 'ER)))
+                             (list (+ (vector-ref (ripe-md-state-hash hash-state) 3)
+                                      (regs-ref regs-left 'EL) (regs-ref regs-right 'AR)))
+                             (list (+ (vector-ref (ripe-md-state-hash hash-state) 4)
+                                      (regs-ref regs-left 'AL) (regs-ref regs-right 'BR)))
+                             (list (+ (vector-ref (ripe-md-state-hash hash-state) 0)
+                                      (regs-ref regs-left 'BL) (regs-ref regs-right 'CR)))))])
+    (ripe-md-state hash-vect (ripe-md-state-length hash-state) (make-bytes 64) 0)
+    ))
+
   
 
 ;; make bufw as vector of integers then build the line call-with-values bufw reg-left reg-right t
@@ -266,7 +280,7 @@
                                 [regs-r regs-right])
         (cond [(eq? w 16)
                (cond [(eq? round-of-calc 5)
-                      (list)];; final calc ;; fill hash state ;; next TODO give back new hash-state
+                      (return-compress-state hash-state regs-l regs-r)];; final calc ;; fill hash state ;; next TODO give back new hash-state
                      [else recur-round-of-calc (add1 round-of-calc) 0 regs-l regs-r])]
                  
               [else 
@@ -296,7 +310,7 @@
                              (regs-ref regs-r 'ER))])
                  (recur-round-of-calc
                   (add1 w)
-                  round-of-calc
+                  (add1 round-of-calc)
                   (set-reg (assign-reg-to-reg
                             (set-reg
                              (assign-regs regs-l regs-assign-left)
