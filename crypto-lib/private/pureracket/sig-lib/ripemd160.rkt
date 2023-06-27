@@ -334,32 +334,71 @@
                            'BR tr)))])))))
 
 (define (ripe-md-update hash-state data)  
-        (let process-data ([h-state hash-state]
-                           [data-len (bytes-length data)]                          
-                           [buf-pos 0]
-                           [data-pos 0]
-                           )
+  (let process-data ([h-state hash-state]
+                     [data-len (bytes-length data)]                          
+                     [buf-pos 0]
+                     [data-pos 0]
+                     )
 
-          (let ([bytes-needed (- 64 buf-pos)])
-            (cond [(>= bytes-needed data-len)
-                   (let* ([len-bits (* (+ data-len bytes-needed) 8)]
-                 [data-pos-new (+ data-pos bytes-needed)]
-                 [data-buffer (bytes->list (subbytes data data-pos data-pos-new))]
-                 [buffer (list->bytes (append
-                                        (bytes->list (ripe-md-state-buffer h-state))
-                                                     (data-buffer)))]
-                 [h-state-comp (ripe-md-state (ripe-md-state-hash h-state) len-bits buffer buf-pos)])
-                   (process-data (ripemd-compress-fun h-state-comp)
-                                 (- data-len bytes-needed)
-                                 (+ buf-pos bytes-needed)
-                                 data-pos-new))]
-                  [else
-                   (let*  ([data-pos-new (+ data-pos data-len)]
-                 [data-buffer (bytes->list (subbytes data data-pos data-pos-new))]
-                 [buffer (list->bytes (append
-                                        (bytes->list (ripe-md-state-buffer h-state))
-                                                     (data-buffer)))])
-                   (ripe-md-state (ripe-md-state-hash h-state) (* (+ data-len bytes-needed) 8) buffer data-len))]))))
+    (let ([bytes-needed (- 64 buf-pos)])
+      (cond [(>= bytes-needed data-len)
+             (let* ([len-bits (* (+ data-len bytes-needed) 8)]
+                    [data-pos-new (+ data-pos bytes-needed)]
+                    [data-buffer (subbytes data data-pos data-pos-new)]
+                    [buffer (bytes-append (ripe-md-state-buffer h-state)
+                                          data-buffer)]
+                    [h-state-comp (ripe-md-state (ripe-md-state-hash h-state) len-bits buffer buf-pos)])
+               (process-data (ripemd-compress-fun h-state-comp)
+                             (- data-len bytes-needed)
+                             (+ buf-pos bytes-needed)
+                             data-pos-new))]
+            [else
+             (let*  ([data-pos-new (+ data-pos data-len)]
+                     [data-buffer (subbytes data data-pos data-pos-new)]
+                     [buffer (bytes-append (ripe-md-state-buffer h-state)
+                                           data-buffer)])
+               (ripe-md-state (ripe-md-state-hash h-state) (* (+ data-len bytes-needed) 8) buffer data-pos-new))]))))
                    
-                           
                             
+(define (ripe-md-final hash-state)
+  ;; append padding
+  (let* ([buffer (bytes-append (ripe-md-state-buffer hash-state) #"#x80")]
+         [buf-pos (add1 (ripe-md-state-bufpos hash-state))]
+         [h-state-new (cond [(> buf-pos 56)
+                             ;; call compress
+                             (let ([h-state (ripe-md-state  (ripe-md-state-hash hash-state)
+                                                            (ripe-md-state-length hash-state)
+                                                            buffer
+                                                            64)])
+                               (ripemd-compress-fun h-state))]
+                            [else (ripe-md-state  (ripe-md-state-hash hash-state)
+                                                  (ripe-md-state-length hash-state)
+                                                  buffer
+                                                  buf-pos)])])
+    (let* ([buffer-new (bytes-append (subbytes (- (bytes-length
+                                                   (ripe-md-state-buffer h-state-new)) 8))
+                                     (64->bytes-little (u64+ (ripe-md-state-length h-state-new))))]
+           [h-state-compress (ripe-md-state (ripe-md-state-hash h-state-new)
+                                            (ripe-md-state-length h-state-new)
+                                            buffer 64)]
+           [h-state-final (ripemd-compress-fun h-state-compress)])
+      (let ([hash-vect (ripe-md-state-hash h-state-final)])
+        (let loop-digest ([digest (32->bytes-little
+                                   (vector-ref hash-vect 0))]
+                          [index 1])
+          (cond [(< index 5)
+                 (loop-digest
+                  (bytes-append digest (32->bytes-little
+                                        (vector-ref hash-vect index)))
+                  (add1 index))]
+                [else digest]))))))
+                        
+      
+      
+           
+                                
+    
+          
+    
+    
+  
